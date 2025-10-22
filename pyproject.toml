@@ -1,0 +1,66 @@
+# pyproject.toml (v3.1 - src layout)
+
+# ==============================================================================
+# Build System Configuration
+# ==============================================================================
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+# ==============================================================================
+# Project Metadata (PEP 621)
+# ==============================================================================
+[project]
+name = "muzai-core"
+version = "0.3.1"
+authors = [
+  { name="Zhilin Wang", email="zhilin.nlp@gmail.com" },
+]
+description = "A modular, interface-driven AI agent for music co-production."
+readme = "Readme.md"
+requires-python = ">=3.9"
+license = { text="MIT" } # For simplicity, can also use { file="LICENSE" }
+keywords = ["ai", "music", "daw", "midi", "agent", "llm", "composition"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: MIDI",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# --- Core & Optional Dependencies ---
+dependencies = []
+
+[project.optional-dependencies]
+realtime = [
+    "pyfluidsynth >= 1.3.0",
+]
+notebook = [
+    "jupyterlab",
+    "ipykernel",
+]
+dev = [
+    "build",
+    "pytest", # Recommended for testing src layouts
+]
+
+# --- Project URLs ---
+[project.urls]
+
+# Homepage = "https://github.com/your-username/muzai-core"
+
+# "Bug Tracker" = "https://github.com/your-username/muzai-core/issues"
+
+
+# ==============================================================================
+# Tool Configuration for Setuptools
+# ==============================================================================
+[tool.setuptools.packages.find]
+# CRITICAL CHANGE FOR SRC LAYOUT:
+# Tell setuptools to look for packages inside the 'src' directory.
+# It will find 'muzai-core' and all its sub-packages.
+where = ["src"]
+# IMPORTANT: Explicitly exclude the tests package from the final build.
+exclude = ["muzai-core.tests*"]
