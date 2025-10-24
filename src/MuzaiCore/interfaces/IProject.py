@@ -1,13 +1,15 @@
 # file: src/MuzaiCore/interfaces/IProject.py
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from .INode import INode
 from .IRouter import IRouter
 from .ITimeline import ITimeline
 from .ICommand import ICommandManager
-from .IAudioEngine import IAudioEngine  # <-- Add this import
 
 from ..models.engine_model import TransportStatus
+
+if TYPE_CHECKING:
+    from .IAudioEngine import IAudioEngine
 
 
 class IProject(ABC):
@@ -32,14 +34,6 @@ class IProject(ABC):
     def command_manager(self) -> ICommandManager:
         pass
 
-    @abstractmethod
-    def get_node_by_id(self, node_id: str) -> Optional[INode]:
-        pass
-
-    @abstractmethod
-    def get_all_nodes(self) -> List[INode]:
-        pass
-
     @property
     @abstractmethod
     def transport_status(self) -> TransportStatus:
@@ -47,6 +41,14 @@ class IProject(ABC):
 
     @property
     @abstractmethod
-    def engine(self) -> IAudioEngine:  # <-- Add this property
+    def engine(self) -> 'IAudioEngine':  # <-- Add this property
         """The audio engine instance associated with this project."""
+        pass
+
+    @abstractmethod
+    def get_node_by_id(self, node_id: str) -> Optional[INode]:
+        pass
+
+    @abstractmethod
+    def get_all_nodes(self) -> List[INode]:
         pass

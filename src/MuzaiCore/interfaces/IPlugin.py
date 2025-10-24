@@ -1,5 +1,5 @@
 # file: src/MuzaiCore/interfaces/IPlugin.py
-from abc import ABC
+from abc import ABC, abstractmethod
 from .INode import INode
 
 

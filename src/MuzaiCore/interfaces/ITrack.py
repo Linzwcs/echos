@@ -36,10 +36,6 @@ class ITrack(INode, ABC):
         """Is the track armed for recording?"""
         pass
 
-    @abstractmethod
-    def set_armed(self, armed: bool):
-        pass
-
     # +++ NEW PROPERTIES for professional workflow +++
     @property
     @abstractmethod
@@ -55,6 +51,10 @@ class ITrack(INode, ABC):
     @property
     @abstractmethod
     def is_frozen(self) -> bool:
+        pass
+
+    @abstractmethod
+    def set_armed(self, armed: bool):
         pass
 
     @abstractmethod

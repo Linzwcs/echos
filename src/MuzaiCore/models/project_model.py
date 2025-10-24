@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
 from .node_model import NodeState
-from ..subsystems.routing.routing_types import Connection
+from .routing_model import Connection
 
 
 @dataclass

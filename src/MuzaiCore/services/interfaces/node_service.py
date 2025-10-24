@@ -1,10 +1,11 @@
 # file: src/MuzaiCore/services/INodeService.py
 from abc import ABC, abstractmethod
 from typing import Optional
-from .api_types import ToolResponse
+from MuzaiCore.models import ToolResponse
+from .base_service import IService
 
 
-class INodeService(ABC):
+class INodeService(IService):
     # --- Create ---
     @abstractmethod
     def create_instrument_track(self, project_id: str,
@@ -44,4 +45,10 @@ class INodeService(ABC):
     @abstractmethod
     def remove_insert_plugin(self, project_id: str, target_node_id: str,
                              plugin_instance_id: str) -> ToolResponse:
+        pass
+
+    @abstractmethod
+    def list_nodes(self,
+                   project_id: str,
+                   node_type: Optional[str] = None) -> ToolResponse:
         pass

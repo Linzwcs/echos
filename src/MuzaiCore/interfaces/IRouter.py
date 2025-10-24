@@ -1,9 +1,11 @@
 # file: src/MuzaiCore/interfaces/IRouter.py
 from abc import ABC, abstractmethod
 from typing import List
-from ..subsystems.routing.routing_types import Connection, Port
+
 # +++ ADD THIS IMPORT +++
 from .INode import INode
+
+from ..models import Port, Connection
 
 
 class IRouter(ABC):

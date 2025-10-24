@@ -1,43 +1,51 @@
-# file: src/MuzaiCore/interfaces/ITimeline.py
+# 假设 ITimeline 位于此文件，或者将其移动到适当位置
+# 请根据你的实际文件结构调整 ITimeline 的位置和导入
 from abc import ABC, abstractmethod
-from typing import List
-from ..models.timeline_model import TempoEvent, TimeSignatureEvent  # <-- New model
+from typing import List, Tuple
+from MuzaiCore.models.timeline_model import TempoEvent, TimeSignatureEvent
 
 
 class ITimeline(ABC):
 
     @abstractmethod
-    def samples_to_beats(self, sample_position: int) -> float:
-        pass
-
-    @abstractmethod
-    def beats_to_samples(self, beat_position: float) -> int:
+    def beats_to_seconds(self, beats: float) -> float:
+        """将节拍数转换为秒。"""
         pass
 
     @abstractmethod
     def seconds_to_beats(self, seconds: float) -> float:
+        """将秒转换为节拍数。"""
         pass
 
     @abstractmethod
-    def beats_to_seconds(self, beats: float) -> float:
+    def get_tempo_events(self) -> List[TempoEvent]:
+        """获取所有速度变化事件，按节拍排序。"""
         pass
 
-    # +++ NEW METHODS for Tempo/Time Signature Tracks +++
+    @abstractmethod
+    def get_time_signature_events(self) -> List[TimeSignatureEvent]:
+        """获取所有拍号变化事件，按节拍排序。"""
+        pass
+
     @abstractmethod
     def set_tempo_at_beat(self, beat: float, bpm: float):
-        """Sets the tempo at a specific beat, creating a tempo change point."""
+        """在指定节拍设置速度。"""
         pass
 
     @abstractmethod
     def set_time_signature_at_beat(self, beat: float, numerator: int,
                                    denominator: int):
-        """Sets the time signature at a specific beat."""
+        """在指定节拍设置拍号。"""
         pass
 
+    @property
     @abstractmethod
-    def get_tempo_events(self) -> List[TempoEvent]:
+    def tempo(self) -> float:
+        """获取当前时间线（通常是0拍）的默认速度。"""
         pass
 
+    @property
     @abstractmethod
-    def get_time_signature_events(self) -> List[TimeSignatureEvent]:
+    def time_signature(self) -> Tuple[int, int]:
+        """获取当前时间线（通常是0拍）的默认拍号。"""
         pass

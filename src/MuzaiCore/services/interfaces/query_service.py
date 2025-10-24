@@ -1,10 +1,11 @@
 # file: src/MuzaiCore/services/IQueryService.py
 from abc import ABC, abstractmethod
 from typing import Optional
-from .api_types import ToolResponse
+from MuzaiCore.models import ToolResponse
+from .base_service import IService
 
 
-class IQueryService(ABC):
+class IQueryService(IService):
     """A dedicated service for all read-only operations to inspect project state."""
 
     @abstractmethod

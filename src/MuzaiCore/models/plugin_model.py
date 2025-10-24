@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any
 from enum import Enum
 
-from ..subsystems.routing.routing_types import Port
+from .routing_model import Port
 
 
 class PluginCategory(Enum):
@@ -23,6 +23,7 @@ class PluginDescriptor:
     vendor: str
     category: PluginCategory
     reports_latency: bool = True
+    latency_samples: int = 0  # +++ NEW: The latency this plugin reports in samples.
     # Pre-defined list of available audio/MIDI ports
     available_ports: List[Port] = field(default_factory=list)
 

@@ -30,7 +30,7 @@ class MIDIClip(Clip):
 
 @dataclass
 class AudioClip(Clip):
-    source_file_path: str
+    source_file_path: str = None
     gain_db: float = 0.0
     # For warping/timestretching
     original_tempo: float = 120.0

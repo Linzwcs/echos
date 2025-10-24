@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict
 
-from git import Optional
+from typing import Optional
 from .IParameter import IParameter
 from .IAudioProcessor import IAudioProcessor
 from ..core.plugin import PluginInstance

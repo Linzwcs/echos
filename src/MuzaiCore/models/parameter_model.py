@@ -4,29 +4,34 @@ from typing import Union, List, Tuple
 
 
 class AutomationCurveType:
+    """自动化曲线类型"""
     LINEAR = "linear"
     EXPONENTIAL = "exponential"
-    # ... other curve types
+    LOGARITHMIC = "logarithmic"
+    SINE = "sine"
+    SQUARE = "square"
+    BEZIER = "bezier"
 
 
 @dataclass
 class AutomationPoint:
+    """自动化点"""
     beat: float
     value: float
-    # tension or curve_shape could be a float from -1.0 to 1.0
-    curve_shape: float = 0.0
     curve_type: str = AutomationCurveType.LINEAR
+    curve_shape: float = 0.0  # -1.0到1.0，控制曲线形状
 
 
 @dataclass
 class AutomationLane:
-    """Represents all automation data for a single parameter."""
+    """参数的自动化通道"""
     is_enabled: bool = True
     points: List[AutomationPoint] = field(default_factory=list)
 
 
 @dataclass
 class ParameterState:
+    """参数的可序列化状态"""
     name: str
     value: Union[float, int, bool, str]
     automation_lane: AutomationLane = field(default_factory=AutomationLane)

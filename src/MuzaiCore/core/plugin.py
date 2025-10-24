@@ -4,8 +4,10 @@ from typing import Dict, List, Optional
 from abc import ABC
 
 from .parameter import Parameter
-from ..interfaces import IPlugin, IParameter
-from ..subsystems.routing.routing_types import Port, PortType
+from ..interfaces.IPlugin import IPlugin
+from ..interfaces.IParameter import IParameter
+
+from ..models import Port, PortType
 from ..models.plugin_model import PluginDescriptor
 from ..models.engine_model import TransportContext, MIDIEvent
 
@@ -53,6 +55,16 @@ class PluginInstance(IPlugin, ABC):
 
     def _process_internal(self, input_buffer, midi_events, context):
         raise NotImplementedError
+
+    # +++ FIX: Implementing the abstract method from IPlugin +++
+    def get_latency_samples(self) -> int:
+        """
+        Returns the processing latency introduced by the plugin in samples.
+        This mock implementation reads the value from its descriptor.
+        """
+        if self.is_enabled and self.descriptor.reports_latency:
+            return self.descriptor.latency_samples
+        return 0
 
 
 class InstrumentPluginInstance(PluginInstance):

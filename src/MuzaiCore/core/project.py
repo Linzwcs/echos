@@ -28,7 +28,7 @@ class Project(IProject):
         self._command_manager = command_manager
         self._transport_status = TransportStatus.STOPPED
         self._engine = engine  # <-- Store the engine
-        self._engine.load_project(
+        self._engine.set_project(
             self)  # <-- Give the engine a reference back to the project
         self.tempo: float = 120.0
         self.time_signature: tuple[int, int] = (4, 4)
@@ -52,6 +52,10 @@ class Project(IProject):
     @property
     def transport_status(self) -> TransportStatus:
         return self._transport_status
+
+    @property
+    def engine(self) -> IAudioEngine:
+        return self._engine
 
     def set_transport_status(self, status: TransportStatus):
         self._transport_status = status

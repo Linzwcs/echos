@@ -1,10 +1,11 @@
 # file: src/MuzaiCore/services/ISystemService.py
 from abc import ABC, abstractmethod
 from typing import Optional
-from .api_types import ToolResponse
+from MuzaiCore.models import ToolResponse
+from .base_service import IService
 
 
-class ISystemService(ABC):
+class ISystemService(IService):
     """A service for interacting with system-level resources like plugins and devices."""
 
     @abstractmethod
@@ -19,6 +20,10 @@ class ISystemService(ABC):
     @abstractmethod
     def get_plugin_details(self, plugin_unique_id: str) -> ToolResponse:
         """Returns the descriptor of a specific plugin (its parameters, ports, etc.)."""
+        pass
+
+    @abstractmethod
+    def get_system_info(self) -> ToolResponse:
         pass
 
     @abstractmethod
