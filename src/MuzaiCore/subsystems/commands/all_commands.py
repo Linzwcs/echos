@@ -6,7 +6,7 @@
 from typing import Any, List, Dict, Optional
 from ...interfaces import ICommand, IProject, INode
 from ...core.track import InstrumentTrack, AudioTrack, BusTrack, VCATrack
-from ...core.plugin import PluginInstance
+from ...core.plugin import UnifiedPluginInstance
 from ...models.clip_model import MIDIClip, Note
 
 
@@ -196,7 +196,7 @@ class AddInsertPluginCommand(ICommand):
     def __init__(self,
                  project: IProject,
                  target_node_id: str,
-                 plugin_instance: PluginInstance,
+                 plugin_instance: UnifiedPluginInstance,
                  index: Optional[int] = None):
         self._project = project
         self._target_node_id = target_node_id

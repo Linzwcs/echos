@@ -2,9 +2,9 @@
 import uuid
 from typing import List, Optional, Dict
 from enum import Enum
-
+import numpy as np
 from .parameter import Parameter
-from .plugin import PluginInstance
+
 from .mixer import MixerChannel
 from ..interfaces import ITrack, IParameter, IMixerChannel
 
@@ -143,6 +143,7 @@ class Track(ITrack):
             input_buffer, midi_events, context)
 
         # 步骤2：将所有混音和处理委托给混音器通道
+
         return self.mixer_channel.process_block(source_signal, source_midi,
                                                 context)
 
@@ -157,7 +158,8 @@ class Track(ITrack):
         """读取冻结的音频文件"""
         # 在真实实现中，这里会从磁盘读取预渲染的音频
         print(f"      -> Track '{self.name}': Reading frozen audio")
-        return "frozen_audio_buffer"
+        # 修正：返回一个正确形状的静音缓冲区，而不是字符串。
+        return np.zeros((context.block_size, 2), dtype=np.float32)
 
     def add_clip(self, clip: AnyClip):
         """在轨道上添加片段"""
@@ -200,17 +202,8 @@ class InstrumentTrack(Track):
         在真实引擎中，这里会查看self.clips，
         找到当前块中开始的所有MIDI音符，并创建MIDIEvent对象列表
         """
-        # 查找当前时间范围内的MIDI片段
-        notes_from_clips = self._collect_midi_notes_in_range(context)
 
-        if notes_from_clips:
-            print(
-                f"      -> Track '{self.name}': Generating {len(notes_from_clips)} MIDI notes at beat {context.current_beat:.2f}"
-            )
-
-        # 混音器通道中的乐器插件将处理这些音符
-        # input_buffer用于侧链目的
-        return input_buffer, notes_from_clips
+        return input_buffer, midi_events
 
     def _collect_midi_notes_in_range(self, context):
         """收集当前时间范围内的MIDI音符"""

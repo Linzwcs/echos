@@ -5,7 +5,7 @@ from typing import List, Dict
 from typing import Optional
 from .IParameter import IParameter
 from .IAudioProcessor import IAudioProcessor
-from ..core.plugin import PluginInstance
+from ..core.plugin import UnifiedPluginInstance
 
 
 class IMixerChannel(IAudioProcessor, ABC):
@@ -26,7 +26,7 @@ class IMixerChannel(IAudioProcessor, ABC):
 
     @property
     @abstractmethod
-    def inserts(self) -> List[PluginInstance]:
+    def inserts(self) -> List[UnifiedPluginInstance]:
         """The list of insert plugins on this channel."""
         pass
 

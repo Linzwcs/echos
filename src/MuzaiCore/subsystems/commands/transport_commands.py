@@ -1,7 +1,7 @@
 from typing import Any, List, Dict, Optional
 from ...interfaces import ICommand, IProject, INode
 from ...core.track import InstrumentTrack, AudioTrack, BusTrack, VCATrack
-from ...core.plugin import PluginInstance
+from ...core.plugin import UnifiedPluginInstance
 from ...models.clip_model import MIDIClip, Note
 
 

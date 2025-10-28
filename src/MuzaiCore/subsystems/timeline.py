@@ -228,3 +228,38 @@ class Timeline(ITimeline):
                 current_beat_pos = end_event.beat  # 更新当前节拍位置
 
         return total_beats  # 应该不会执行到这里，除非 target_seconds 极长
+
+    def samples_to_beats(self, samples: int, sample_rate: int) -> float:
+        """
+        将样本位置转换为节拍数。
+        这是一个两步转换：samples -> seconds -> beats。
+        """
+        if sample_rate <= 0:
+            raise ValueError("Sample rate must be positive.")
+
+        # 步骤 1: 将样本数转换为秒
+        # 这是纯粹的物理时间转换，与速度无关
+        seconds = samples / sample_rate
+
+        # 步骤 2: 使用已有的方法将秒转换为节拍
+        # 这一步会处理所有的速度变化
+        return self.seconds_to_beats(seconds)
+
+    def beats_to_samples(self, beats: float, sample_rate: int) -> int:
+        """
+        将节拍数转换为最接近的样本位置。
+        这是一个两步转换：beats -> seconds -> samples。
+        """
+        if sample_rate <= 0:
+            raise ValueError("Sample rate must be positive.")
+
+        # 步骤 1: 使用已有的方法将节拍转换为秒
+        # 这一步会处理所有的速度变化
+        seconds = self.beats_to_seconds(beats)
+
+        # 步骤 2: 将秒转换为样本数
+        # 这是纯粹的物理时间转换，与速度无关
+        samples = seconds * sample_rate
+
+        # 返回最接近的整数样本位置，因为样本是离散的
+        return round(samples)

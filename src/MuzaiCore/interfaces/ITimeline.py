@@ -49,3 +49,13 @@ class ITimeline(ABC):
     def time_signature(self) -> Tuple[int, int]:
         """获取当前时间线（通常是0拍）的默认拍号。"""
         pass
+
+    @abstractmethod
+    def samples_to_beats(self, samples: int, sample_rate: int) -> float:
+        """将样本位置转换为节拍数。"""
+        pass
+
+    @abstractmethod
+    def beats_to_samples(self, beats: float, sample_rate: int) -> int:
+        """将节拍数转换为最接近的样本位置。"""
+        pass

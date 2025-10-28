@@ -21,9 +21,7 @@ class MockAudioEngine(IAudioEngine):
 
         # --- 线程相关属性 ---
         self._playback_thread: Optional[threading.Thread] = None
-        # 使用 threading.Event 来安全地控制线程的停止
         self._stop_event: threading.Event = threading.Event()
-        # 使用锁来保护共享状态（如 _is_playing 和 _current_beat），防止多线程冲突
         self._lock: threading.Lock = threading.Lock()
 
     def set_project(self, project: IProject):

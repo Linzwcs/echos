@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import uuid
 import numpy as np
 from .parameter import Parameter
-from .plugin import PluginInstance
+from .plugin import UnifiedPluginInstance
 from ..interfaces import IParameter, IMixerChannel
 from ..models import MIDIEvent, TransportContext
 from dataclasses import dataclass, field
@@ -45,7 +45,7 @@ class MixerChannel(IMixerChannel):
         self.stereo_width = Parameter("stereo_width", 1.0)  # 0.0-2.0
 
         # 插入效果链
-        self._inserts: List[PluginInstance] = []
+        self._inserts: List[UnifiedPluginInstance] = []
 
         # 发送列表
         self._sends: List[Send] = []
@@ -73,7 +73,7 @@ class MixerChannel(IMixerChannel):
         return self._pan
 
     @property
-    def inserts(self) -> List[PluginInstance]:
+    def inserts(self) -> List[UnifiedPluginInstance]:
         """获取此通道上的插入效果列表"""
         return self._inserts
 
@@ -218,7 +218,9 @@ class MixerChannel(IMixerChannel):
                 f"        Sending to bus {send.target_bus_node_id[:8]}: {send_level_db:.2f} dB"
             )
 
-    def add_insert(self, plugin: PluginInstance, index: Optional[int] = None):
+    def add_insert(self,
+                   plugin: UnifiedPluginInstance,
+                   index: Optional[int] = None):
         """在指定位置添加插入效果"""
         if index is None:
             self._inserts.append(plugin)

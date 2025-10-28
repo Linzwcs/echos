@@ -16,7 +16,7 @@ from ...models.project_model import ProjectState
 from ...models.device_model import AudioDevice, MIDIDevice, IOChannel
 
 # --- Mock Implementations for other managers ---
-from .plugin import MockPluginRegistry
+from .plugin_registry import MockPluginRegistry
 from .device_manager import MockDeviceManager  # <-- New mock component
 
 
