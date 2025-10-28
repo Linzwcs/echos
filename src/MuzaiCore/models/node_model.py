@@ -1,5 +1,6 @@
 # file: src/MuzaiCore/models/node_model.py
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import List, Dict, Any, Union
 from .clip_model import AnyClip
 from .parameter_model import ParameterState

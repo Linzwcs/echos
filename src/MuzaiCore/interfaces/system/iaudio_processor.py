@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 import numpy as np
-from ..models.engine_model import TransportContext, NotePlaybackInfo
-from ..models.routing_model import Port
+from ...models import TransportContext, NotePlaybackInfo
 
 
 class IAudioProcessor(ABC):
@@ -12,16 +11,4 @@ class IAudioProcessor(ABC):
                       midi_events: List[NotePlaybackInfo],
                       context: TransportContext) -> np.ndarray:
         """Processes one block of audio and MIDI data."""
-        pass
-
-
-class INode(IAudioProcessor, ABC):
-
-    @property
-    @abstractmethod
-    def node_id(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_ports(self, port_type: Optional[str] = None) -> List[Port]:
         pass

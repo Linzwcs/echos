@@ -17,10 +17,10 @@ from .clip_model import AnyClip, AudioClip, Clip, MIDIClip, Note
 from .device_model import AudioDevice, IOChannel, MIDIDevice
 
 # from engine_model
-from .engine_model import MIDIEvent, TransportContext, TransportStatus
+from .engine_model import NotePlaybackInfo, TransportContext, TransportStatus
 
 # from node_model
-from .node_model import NodeState, PluginState, TrackState
+from .node_model import NodeState, PluginState, TrackState, TrackRecordMode
 
 # from parameter_model
 from .parameter_model import (
@@ -54,7 +54,7 @@ __all__ = [
     "IOChannel",
     "MIDIDevice",
     # engine_model
-    "MIDIEvent",
+    "NotePlaybackInfo",
     "TransportContext",
     "TransportStatus",
     # node_model
