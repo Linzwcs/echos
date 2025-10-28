@@ -2,7 +2,7 @@
 import uuid
 from typing import Dict, Optional, List
 
-from ..interfaces import IProject, INode, IRouter, ITimeline, ICommandManager, IAudioEngine
+from ..interfaces.system import IProject, INode, IRouter, ITimeline, ICommandManager, IAudioEngine
 from ..models.engine_model import TransportStatus
 
 

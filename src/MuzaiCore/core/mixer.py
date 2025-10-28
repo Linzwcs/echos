@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 import uuid
 import numpy as np
 from .parameter import Parameter
-from .plugin import UnifiedPluginInstance
-from ..interfaces import IParameter, IMixerChannel
-from ..models import MIDIEvent, TransportContext
+from ..interfaces.system import IParameter, IMixerChannel, IPlugin
+from ..interfaces.system.imixer_channel import _I
+from ..models import NotePlaybackInfo, TransportContext
 from dataclasses import dataclass, field
 
 
@@ -45,7 +45,7 @@ class MixerChannel(IMixerChannel):
         self.stereo_width = Parameter("stereo_width", 1.0)  # 0.0-2.0
 
         # 插入效果链
-        self._inserts: List[UnifiedPluginInstance] = []
+        self._inserts: List[IPlugin] = []
 
         # 发送列表
         self._sends: List[Send] = []
@@ -73,7 +73,7 @@ class MixerChannel(IMixerChannel):
         return self._pan
 
     @property
-    def inserts(self) -> List[UnifiedPluginInstance]:
+    def inserts(self) -> List[IPlugin]:
         """获取此通道上的插入效果列表"""
         return self._inserts
 
@@ -113,7 +113,7 @@ class MixerChannel(IMixerChannel):
         return params
 
     def process_block(self, input_buffer: np.ndarray,
-                      midi_events: List[MIDIEvent],
+                      midi_events: List[NotePlaybackInfo],
                       context: TransportContext) -> Optional[np.ndarray]:
         """
         处理通道条的完整信号链

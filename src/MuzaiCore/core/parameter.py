@@ -5,8 +5,7 @@ import bisect
 
 from ..models.parameter_model import AutomationPoint, AutomationLane, AutomationCurveType
 from ..models.engine_model import TransportContext
-from ..interfaces.IParameter import IParameter
-from ..interfaces.ICommand import ICommand
+from ..interfaces.system import IParameter, ICommand
 
 
 class ParameterType(Enum):
