@@ -177,14 +177,28 @@ class Parameter(IParameter):
             return self._max_value
         return value
 
+    def set_owner(self, owner_node_id: str):
+        """设置参数的所有者节点ID"""
+        self._owner_node_id = owner_node_id
+
+    def subscribe(self, listener: "IMixerSync"):
+        """订阅参数变化事件"""
+        if listener not in self._mixer_listeners:
+            self._mixer_listeners.append(listener)
+
     def _set_value_internal(self, new_value: Any):
-        """内部方法设置值，由Command使用"""
         old_value = self._base_value
         self._base_value = self._clamp(new_value)
 
-        # 触发变化回调
+        # 通知变化回调
         for callback in self._change_callbacks:
             callback(old_value, self._base_value)
+
+        # 通知混音器监听者
+        if self._owner_node_id:
+            for listener in self._mixer_listeners:
+                listener.on_parameter_changed(self._owner_node_id, self._name,
+                                              self._base_value)
 
     def add_automation_point(self,
                              beat: float,
@@ -249,7 +263,7 @@ class Parameter(IParameter):
 
     def create_set_value_command(self, new_value: Any) -> ICommand:
         """创建更改参数值的命令"""
-        from ..subsystems.commands.parameter_commands import SetParameterCommand
+        from ..core.history.commands.parameter_commands import SetParameterCommand
         return SetParameterCommand(self, new_value)
 
     def get_display_value(self) -> str:

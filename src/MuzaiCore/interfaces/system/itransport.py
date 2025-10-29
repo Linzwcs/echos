@@ -34,4 +34,20 @@ class ITransport(ABC):
 
     @abstractmethod
     def get_playback_position_beats(self) -> float:
-        """Gets the curren
+        """Gets the current playback head position in beats."""
+        pass
+
+    @abstractmethod
+    def enable_looping(self, is_enabled: bool) -> None:
+        """Enables or disables the loop range."""
+        pass
+
+    @abstractmethod
+    def set_loop_range_beats(self, start_beats: float, end_beats: float) -> None:
+        """Sets the loop range in beats."""
+        pass
+
+    @abstractmethod
+    def get_loop_range_beats(self) -> Tuple[float, float]:
+        """Gets the current loop range as a (start, end) tuple in beats."""
+        pass

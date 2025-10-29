@@ -2,8 +2,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .IProject import IProject
-from ..models.project_model import ProjectState
+from .iproject import IProject
+from ...models.project_model import ProjectState
 
 
 class IDAWManager(ABC):

@@ -76,35 +76,6 @@ class Timeline(ITimeline):
             # 节拍不存在，插入
             event_list.insert(idx, new_event)
 
-    def set_tempo_at_beat(self, beat: float, bpm: float):
-        """
-        在指定节拍设置速度。
-        如果 beat < 0，忽略。
-        如果 beat 已经有速度事件，则更新。
-        否则插入新事件并保持列表排序。
-        """
-        if beat < 0:
-            return
-
-        new_tempo_event = TempoEvent(beat=beat, bpm=bpm)
-        self._add_or_update_event(self._tempo_events, new_tempo_event)
-
-    def set_time_signature_at_beat(self, beat: float, numerator: int,
-                                   denominator: int):
-        """
-        在指定节拍设置拍号。
-        如果 beat < 0，忽略。
-        如果 beat 已经有拍号事件，则更新。
-        否则插入新事件并保持列表排序。
-        """
-        if beat < 0:
-            return
-
-        new_ts_event = TimeSignatureEvent(beat=beat,
-                                          numerator=numerator,
-                                          denominator=denominator)
-        self._add_or_update_event(self._time_signature_events, new_ts_event)
-
     def get_tempo_events(self) -> List[TempoEvent]:
         """返回所有速度事件的副本。"""
         return list(self._tempo_events)
@@ -263,3 +234,33 @@ class Timeline(ITimeline):
 
         # 返回最接近的整数样本位置，因为样本是离散的
         return round(samples)
+
+    def subscribe(self, listener: 'ITransportSync'):
+        """订阅时间线事件"""
+        if listener not in self._transport_listeners:
+            self._transport_listeners.append(listener)
+
+    def set_tempo_at_beat(self, beat: float, bpm: float):
+        if beat < 0:
+            return
+
+        new_tempo_event = TempoEvent(beat=beat, bpm=bpm)
+        self._add_or_update_event(self._tempo_events, new_tempo_event)
+
+        # 通知监听者
+        for listener in self._transport_listeners:
+            listener.on_tempo_changed(beat, bpm)
+
+    def set_time_signature_at_beat(self, beat: float, numerator: int,
+                                   denominator: int):
+        if beat < 0:
+            return
+
+        new_ts_event = TimeSignatureEvent(beat=beat,
+                                          numerator=numerator,
+                                          denominator=denominator)
+        self._add_or_update_event(self._time_signature_events, new_ts_event)
+
+        # 通知监听者
+        for listener in self._transport_listeners:
+            listener.on_time_signature_changed(beat, numerator, denominator)

@@ -4,6 +4,7 @@ from typing import Any, List
 from .icommand import ICommand
 from ...models.parameter_model import AutomationLane  # <-- New model
 from ...models.engine_model import TransportContext  # <-- For time-aware value calculation
+from .isync import IMixerSync
 
 
 class IParameter(ABC):
@@ -37,4 +38,8 @@ class IParameter(ABC):
     @abstractmethod
     def create_set_value_command(self, new_value: Any) -> ICommand:
         """Returns a command object to change the base value."""
+        pass
+
+    @abstractmethod
+    def subscribe(self, listener: IMixerSync):
         pass

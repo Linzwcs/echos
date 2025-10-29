@@ -6,6 +6,7 @@ from typing import Optional
 from .iparameter import IParameter
 from .iaudio_processor import IAudioProcessor
 from .inode import IPlugin
+from .isync import IMixerSync
 
 
 class IMixerChannel(IAudioProcessor, ABC):
@@ -54,14 +55,6 @@ class IMixerChannel(IAudioProcessor, ABC):
         """The ID of the VCATrack controlling this channel."""
         pass
 
-
-class _IMutableMixerChannel(ABC):
-    """
-    An internal interface defining state mutation methods for a MixerChannel.
-    This should ONLY be used by trusted components like Commands, which
-    understand the full lifecycle of a state change.
-    """
-
     @abstractmethod
     def add_insert(self, plugin: "IPlugin") -> None:
         """Adds a plugin to the insert chain."""
@@ -104,4 +97,8 @@ class _IMutableMixerChannel(ABC):
 
     @abstractmethod
     def set_vca_controller(self, vca_id: Optional[str]):
+        pass
+
+    @abstractmethod
+    def subscribe(self, listener: IMixerSync):
         pass

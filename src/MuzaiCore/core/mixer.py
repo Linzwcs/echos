@@ -3,11 +3,13 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 import uuid
 import numpy as np
-from .parameter import Parameter
-from ..interfaces.system import IParameter, IMixerChannel, IPlugin
-from ..interfaces.system.imixer_channel import _I
-from ..models import NotePlaybackInfo, TransportContext
 from dataclasses import dataclass, field
+
+from .parameter import Parameter
+from .plugin import Plugin
+from ..interfaces.system.isync import IMixerSync
+from ..interfaces.system import IParameter, IMixerChannel, IPlugin
+from ..models import NotePlaybackInfo, TransportContext
 
 
 @dataclass
@@ -30,17 +32,14 @@ class MixerChannel(IMixerChannel):
     def __init__(self, channel_id: Optional[str] = None):
         self._channel_id = channel_id or str(uuid.uuid4())
 
-        # 基础参数 (使用下划线前缀以匹配属性)
         self._volume = Parameter("volume", -6.0)  # dB
         self._pan = Parameter("pan", 0.0)  # -1.0 (L) 到 +1.0 (R)
         self.input_gain = Parameter("input_gain", 0.0)  # dB
 
-        # 通道状态
         self.is_muted = False
         self.is_solo = False
         self.is_record_enabled = False
 
-        # 相位和立体声
         self.phase_inverted = False
         self.stereo_width = Parameter("stereo_width", 1.0)  # 0.0-2.0
 
@@ -164,9 +163,6 @@ class MixerChannel(IMixerChannel):
             return None
 
         gain_db = self.input_gain.get_value_at(context)
-        # 在真实实现中:
-        # gain_linear = 10 ** (gain_db / 20.0)
-        # return buffer * gain_linear
 
         print(f"        Applying input gain: {gain_db:.2f} dB to buffer")
         return buffer
@@ -180,10 +176,6 @@ class MixerChannel(IMixerChannel):
         volume_db = self.volume.get_value_at(context)
         pan_value = self.pan.get_value_at(context)
 
-        # 在真实实现中:
-        # volume_linear = 10 ** (volume_db / 20.0)
-        # panned_buffer = self._apply_panning(buffer * volume_linear, pan_value)
-
         print(
             f"        Applying fader: Volume={volume_db:.2f} dB, Pan={pan_value:.2f}"
         )
@@ -191,14 +183,7 @@ class MixerChannel(IMixerChannel):
 
     def _apply_panning(self, buffer: np.ndarray,
                        pan_value: float) -> np.ndarray:
-        """应用声像（恒功率声像法则）"""
-        # 假设 buffer 是 [L, R] 通道
-        # 在真实实现中，这里会使用恒功率声像算法
-        # pan_angle = pan_value * (np.pi / 4)  # Map -1..1 to -45..45 degrees
-        # left_gain = np.cos(pan_angle + np.pi / 4)
-        # right_gain = np.sin(pan_angle + np.pi / 4)
-        # buffer[0, :] *= left_gain
-        # buffer[1, :] *= right_gain
+
         return buffer
 
     def _process_sends(self, sends: List[Send], buffer: Optional[np.ndarray],
@@ -218,36 +203,36 @@ class MixerChannel(IMixerChannel):
                 f"        Sending to bus {send.target_bus_node_id[:8]}: {send_level_db:.2f} dB"
             )
 
-    def add_insert(self,
-                   plugin: UnifiedPluginInstance,
-                   index: Optional[int] = None):
-        """在指定位置添加插入效果"""
+    def subscribe(self, listener: IMixerSync):
+        """订阅混音器事件"""
+        if listener not in self._mixer_listeners:
+            self._mixer_listeners.append(listener)
+
+    def add_insert(self, plugin: Plugin, index: Optional[int] = None):
         if index is None:
             self._inserts.append(plugin)
+            actual_index = len(self._inserts) - 1
         else:
             self._inserts.insert(index, plugin)
-        print(
-            f"Added insert plugin '{plugin.descriptor.name}' to channel {self.channel_id[:8]}"
-        )
+            actual_index = index
+
+        for listener in self._mixer_listeners:
+            listener.on_insert_added(self._channel_id, plugin, actual_index)
 
     def remove_insert(self, plugin_instance_id: str) -> bool:
-        """根据实例ID移除插入效果"""
         for i, plugin in enumerate(self._inserts):
             if plugin.node_id == plugin_instance_id:
                 removed_plugin = self._inserts.pop(i)
-                print(
-                    f"Removed insert plugin '{removed_plugin.descriptor.name}' from channel {self.channel_id[:8]}"
-                )
+                for listener in self._mixer_listeners:
+                    listener.on_insert_removed(self._channel_id,
+                                               plugin_instance_id)
                 return True
-        print(
-            f"Warning: Insert plugin {plugin_instance_id[:8]} not found on channel {self.channel_id[:8]}"
-        )
         return False
 
     def move_insert(self, plugin_instance_id: str, new_index: int) -> bool:
-        """移动插入效果的位置"""
-        plugin_to_move = None
         old_index = -1
+        plugin_to_move = None
+
         for i, plugin in enumerate(self._inserts):
             if plugin.node_id == plugin_instance_id:
                 plugin_to_move = plugin
@@ -257,14 +242,12 @@ class MixerChannel(IMixerChannel):
         if plugin_to_move:
             self._inserts.pop(old_index)
             self._inserts.insert(new_index, plugin_to_move)
-            print(
-                f"Moved plugin '{plugin_to_move.descriptor.name}' to position {new_index} on channel {self.channel_id[:8]}"
-            )
-            return True
 
-        print(
-            f"Warning: Could not move plugin {plugin_instance_id[:8]} - not found."
-        )
+            # 通知监听者
+            for listener in self._mixer_listeners:
+                listener.on_insert_moved(self._channel_id, plugin_instance_id,
+                                         old_index, new_index)
+            return True
         return False
 
     def add_send(self,
