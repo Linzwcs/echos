@@ -10,6 +10,10 @@ from typing import Optional, Dict
 from ...interfaces.system import IDAWManager, IProject, IProjectSerializer, INodeFactory
 from ...models import ProjectState
 from ...core.persistence import ProjectSerializer
+from ...core.project import Project
+from ...core.router import Router
+from ...core.timeline import Timeline
+
 from ..common.message_queue import RealTimeMessageQueue
 
 from .registry import DawDreamerPluginRegistry
@@ -86,26 +90,30 @@ class DawDreamerDAWManager(IDAWManager):
     # --- IDAWManager Interface Implementation ---
 
     def create_project(self, name: str) -> IProject:
-        from ...core.project import Project
-
-        # If a project is already active, close it first.
         if self._active_project_id:
             self.close_project(self._active_project_id)
 
-        # The project itself is a backend-agnostic domain object.
-        project = Project(name=name)
+        router = Router()  # Instantiate the event-aware router
 
-        # Link the project's timeline to the transport for time conversions.
-        self._transport.set_project_timeline(project.timeline)
+        # *** THE KEY WIRING STEP ***
+        # The SyncController listens directly to the Router's events.
+        router.subscribe(self._sync_controller)
+
+        project = Project(
+            name=name,
+            router=router,  # Pass the wired-up router
+            timeline=Timeline(),
+            command_manager=CommandManager(),
+            engine=self._audio_engine)
 
         self._projects[project.project_id] = project
         self._active_project_id = project.project_id
 
-        # Although the project is empty, we tell the sync controller to "observe" it.
-        self._sync_controller.observe_project(project)
+        # Initial sync is no longer needed here, as adding nodes via services will trigger events.
+        # However, for loading a project, the on_project_loaded approach is still best.
 
         print(
-            f"DAWManager: Created and activated new project '{name}' ({project.project_id})."
+            f"DAWManager: Created project '{name}'. Router is now broadcasting to SyncController."
         )
         return project
 

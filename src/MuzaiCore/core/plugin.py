@@ -33,6 +33,7 @@ class Plugin(IPlugin):
             name: Parameter(self._node_id, name, default_value)
             for name, default_value in descriptor.default_parameters.items()
         }
+        self._mixer_listeners: List['IMixerSync'] = []
 
     @property
     def node_id(self) -> str:
@@ -42,8 +43,17 @@ class Plugin(IPlugin):
     def is_enabled(self) -> bool:
         return self._is_enabled
 
+    def subscribe(self, listener: 'IMixerSync'):
+        """订阅插件状态变化事件"""
+        if listener not in self._mixer_listeners:
+            self._mixer_listeners.append(listener)
+
     def set_enabled(self, enabled: bool):
-        self._is_enabled = enabled
+        if self._is_enabled != enabled:
+            self._is_enabled = enabled
+            # 通知监听者
+            for listener in self._mixer_listeners:
+                listener.on_plugin_enabled_changed(self.node_id, enabled)
 
     def get_parameters(self) -> Dict[str, IParameter]:
         return self._parameters

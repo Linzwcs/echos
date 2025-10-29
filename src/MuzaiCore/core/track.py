@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Set, Tuple
 import numpy as np
 
 from ..interfaces.system import ITrack, IMixerChannel
+from ..interfaces.system.isync import IClipSync, ITrackSync
 from ..models import (Port, PortType, PortDirection, AnyClip, MIDIClip,
                       AudioClip, Note, TransportContext, NotePlaybackInfo)
 from .mixer import MixerChannel
@@ -24,6 +25,7 @@ class Track(ITrack):
         self._node_id = node_id or f"track_{uuid.uuid4()}"
         self._name = name
         self.clips: Set[AnyClip] = set()
+        self._clip_listeners: List['ITrackSync'] = []
 
         # Composition: Every track owns a mixer channel.
         self._mixer_channel: IMixerChannel = MixerChannel(self._node_id)
@@ -91,14 +93,25 @@ class Track(ITrack):
             return [p for p in all_ports if p.port_type == port_type]
         return all_ports
 
+    def subscribe_clip_events(self, listener: 'ITrackSync'):
+        """订阅 clip 变化事件"""
+        if listener not in self._clip_listeners:
+            self._clip_listeners.append(listener)
+
     def add_clip(self, clip: AnyClip):
         self.clips.add(clip)
+        # 通知所有监听者
+        for listener in self._clip_listeners:
+            listener.on_clip_added(self.node_id, clip)
 
     def remove_clip(self, clip_id: str) -> bool:
         clip_to_remove = next((c for c in self.clips if c.clip_id == clip_id),
                               None)
         if clip_to_remove:
             self.clips.remove(clip_to_remove)
+            # 通知所有监听者
+            for listener in self._clip_listeners:
+                listener.on_clip_removed(self.node_id, clip_id)
             return True
         return False
 
