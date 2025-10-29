@@ -3,7 +3,7 @@ from typing import List, Optional
 import numpy as np
 from .iaudio_processor import IAudioProcessor
 from .imixer_channel import IMixerChannel
-from ...models import Port, TrackRecordMode
+from ...models import Port
 
 
 class INode(IAudioProcessor, ABC):

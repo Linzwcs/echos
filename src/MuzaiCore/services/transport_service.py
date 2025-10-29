@@ -3,7 +3,7 @@ from ..interfaces.services import ITransportService
 from ..models import ToolResponse, TransportStatus
 from ..interfaces import IDAWManager
 
-from ..core.history.commands.all_commands import SetTempoCommand, SetTimeSignatureCommand
+from ..core.history.commands.transport_commands import SetTempoCommand, SetTimeSignatureCommand
 
 
 class TransportService(ITransportService):

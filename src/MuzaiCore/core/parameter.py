@@ -5,7 +5,8 @@ import bisect
 
 from ..models.parameter_model import AutomationPoint, AutomationLane, AutomationCurveType
 from ..models.engine_model import TransportContext
-from ..interfaces.system import IParameter, ICommand
+from ..models.event_model import ParameterChanged  # <-- 新增导入
+from ..interfaces.system import IParameter, ICommand, IEventBus  # <-- 新增导入
 
 
 class ParameterType(Enum):
@@ -23,19 +24,24 @@ class Parameter(IParameter):
     支持完整的自动化、调制和值映射
     """
 
-    def __init__(self,
-                 name: str,
-                 default_value: Any,
-                 min_value: Optional[Any] = None,
-                 max_value: Optional[Any] = None,
-                 param_type: ParameterType = ParameterType.FLOAT,
-                 unit: str = "",
-                 display_format: str = "{:.2f}",
-                 value_mapper: Optional[Callable] = None):
+    def __init__(
+            self,
+            owner_node_id: str,  # <-- 新增 owner_node_id
+            name: str,
+            default_value: Any,
+            event_bus: Optional[IEventBus] = None,  # <-- 新增 event_bus
+            min_value: Optional[Any] = None,
+            max_value: Optional[Any] = None,
+            param_type: ParameterType = ParameterType.FLOAT,
+            unit: str = "",
+            display_format: str = "{:.2f}",
+            value_mapper: Optional[Callable] = None):
 
+        self._owner_node_id = owner_node_id
         self._name = name
         self._default_value = default_value
         self._base_value = default_value  # 基础值（无自动化）
+        self._event_bus = event_bus
         self._min_value = min_value
         self._max_value = max_value
         self._param_type = param_type
@@ -98,9 +104,6 @@ class Parameter(IParameter):
 
         # 3. 应用调制
         if self._modulation_amount != 0.0:
-            # 在真实实现中，这里会从调制源读取值
-            # modulation_value = self._read_modulation_sources(context)
-            # final_value += modulation_value * self._modulation_amount
             pass
 
         # 4. 限制在范围内
@@ -113,99 +116,77 @@ class Parameter(IParameter):
         return final_value
 
     def _interpolate_automation(self, beat: float) -> Any:
-        """
-        在给定beat位置插值自动化值
-        支持不同的曲线类型
-        """
         points = self._automation_lane.points
         if not points:
             return self._base_value
 
-        # 按beat排序点（如果尚未排序）
         sorted_points = sorted(points, key=lambda p: p.beat)
 
-        # 如果beat在第一个点之前
         if beat <= sorted_points[0].beat:
             return sorted_points[0].value
 
-        # 如果beat在最后一个点之后
         if beat >= sorted_points[-1].beat:
             return sorted_points[-1].value
 
-        # 找到beat周围的两个点
         for i in range(len(sorted_points) - 1):
             p1 = sorted_points[i]
             p2 = sorted_points[i + 1]
 
             if p1.beat <= beat <= p2.beat:
-                # 根据曲线类型插值
                 return self._interpolate_between_points(p1, p2, beat)
 
         return self._base_value
 
     def _interpolate_between_points(self, p1: AutomationPoint,
                                     p2: AutomationPoint, beat: float) -> Any:
-        """在两个自动化点之间插值"""
-        # 计算归一化位置（0.0到1.0）
         t = (beat - p1.beat) / (p2.beat -
                                 p1.beat) if p2.beat != p1.beat else 0.0
 
-        # 根据曲线类型应用不同的插值
         if p1.curve_type == AutomationCurveType.LINEAR:
-            # 线性插值
             return p1.value + (p2.value - p1.value) * t
-
         elif p1.curve_type == AutomationCurveType.EXPONENTIAL:
-            # 指数插值
-            # 使用curve_shape控制曲线的强度
-            curve = p1.curve_shape  # -1.0到1.0
+            curve = p1.curve_shape
             if curve > 0:
-                t = t**(1 + curve * 2)  # 向外弯曲
+                t = t**(1 + curve * 2)
             else:
-                t = 1 - (1 - t)**(1 - curve * 2)  # 向内弯曲
+                t = 1 - (1 - t)**(1 - curve * 2)
             return p1.value + (p2.value - p1.value) * t
-
         else:
-            # 默认线性
             return p1.value + (p2.value - p1.value) * t
 
     def _clamp(self, value: Any) -> Any:
-        """将值限制在最小和最大范围内"""
         if self._min_value is not None and value < self._min_value:
             return self._min_value
         if self._max_value is not None and value > self._max_value:
             return self._max_value
         return value
 
-    def set_owner(self, owner_node_id: str):
-        """设置参数的所有者节点ID"""
-        self._owner_node_id = owner_node_id
-
-    def subscribe(self, listener: "IMixerSync"):
-        """订阅参数变化事件"""
-        if listener not in self._mixer_listeners:
-            self._mixer_listeners.append(listener)
+    # set_owner 方法不再需要，因为 owner_id 在构造时传入
 
     def _set_value_internal(self, new_value: Any):
         old_value = self._base_value
-        self._base_value = self._clamp(new_value)
+        clamped_value = self._clamp(new_value)
+        if old_value == clamped_value:
+            return
 
-        # 通知变化回调
+        self._base_value = clamped_value
+
+        # 通知变化回调 (保留以支持内部逻辑)
         for callback in self._change_callbacks:
             callback(old_value, self._base_value)
 
-        # 通知混音器监听者
-        if self._owner_node_id:
-            for listener in self._mixer_listeners:
-                listener.on_parameter_changed(self._owner_node_id, self._name,
-                                              self._base_value)
+        # 发布领域事件
+        if self._event_bus:
+            event = ParameterChanged(owner_node_id=self._owner_node_id,
+                                     param_name=self._name,
+                                     new_value=self._base_value)
+            self._event_bus.publish(event)
 
     def add_automation_point(self,
                              beat: float,
                              value: Any,
                              curve_type: str = AutomationCurveType.LINEAR,
                              curve_shape: float = 0.0):
-        """在指定beat添加自动化点"""
         point = AutomationPoint(beat=beat,
                                 value=self._clamp(value),
                                 curve_type=curve_type,
@@ -219,7 +200,6 @@ class Parameter(IParameter):
     def remove_automation_point_at(self,
                                    beat: float,
                                    tolerance: float = 0.01) -> bool:
-        """移除指定beat附近的自动化点"""
         for i, point in enumerate(self._automation_lane.points):
             if abs(point.beat - beat) <= tolerance:
                 self._automation_lane.points.pop(i)
@@ -230,18 +210,15 @@ class Parameter(IParameter):
         return False
 
     def clear_automation(self):
-        """清除所有自动化数据"""
         self._automation_lane.points.clear()
         print(f"Cleared automation for '{self._name}'")
 
     def enable_automation(self, enabled: bool = True):
-        """启用或禁用自动化"""
         self._automation_lane.is_enabled = enabled
         status = "enabled" if enabled else "disabled"
         print(f"Automation {status} for '{self._name}'")
 
     def add_modulation_source(self, source_id: str, amount: float = 0.5):
-        """添加调制源（LFO、包络等）"""
         if source_id not in self._modulation_sources:
             self._modulation_sources.append(source_id)
             self._modulation_amount = amount
@@ -250,7 +227,6 @@ class Parameter(IParameter):
             )
 
     def remove_modulation_source(self, source_id: str):
-        """移除调制源"""
         if source_id in self._modulation_sources:
             self._modulation_sources.remove(source_id)
             print(
@@ -258,16 +234,13 @@ class Parameter(IParameter):
             )
 
     def add_change_callback(self, callback: Callable):
-        """添加值变化时的回调函数"""
         self._change_callbacks.append(callback)
 
     def create_set_value_command(self, new_value: Any) -> ICommand:
-        """创建更改参数值的命令"""
         from ..core.history.commands.parameter_commands import SetParameterCommand
         return SetParameterCommand(self, new_value)
 
     def get_display_value(self) -> str:
-        """返回格式化的显示值"""
         value = self._base_value
         if self._param_type == ParameterType.BOOL:
             return "On" if value else "Off"
@@ -278,7 +251,6 @@ class Parameter(IParameter):
             return f"{formatted} {self._unit}".strip()
 
     def reset_to_default(self):
-        """重置为默认值"""
         self._set_value_internal(self._default_value)
         print(f"Reset '{self._name}' to default: {self._default_value}")
 
@@ -286,6 +258,28 @@ class Parameter(IParameter):
         return f"Parameter(name='{self._name}', value={self._base_value}, type={self._param_type.value})"
 
 
+class VCAParameter(Parameter):
+    """
+    VCA参数 - 特殊的参数类型
+    """
+
+    def __init__(self,
+                 owner_node_id: str,
+                 name: str,
+                 default_value,
+                 event_bus: Optional[IEventBus] = None,
+                 min_value=None,
+                 max_value=None):
+        super().__init__(owner_node_id=owner_node_id,
+                         name=name,
+                         default_value=default_value,
+                         event_bus=event_bus,
+                         min_value=min_value,
+                         max_value=max_value)
+        # VCA参数的事件通知由基类处理
+
+
+# (ParameterGroup class remains unchanged)
 class ParameterGroup:
     """
     参数组，用于将相关参数组织在一起

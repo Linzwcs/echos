@@ -21,6 +21,7 @@ class PluginDescriptor:
     unique_plugin_id: str  # e.g., "native_instruments.massive_x.vst3"
     name: str
     vendor: str
+    meta: str
     category: PluginCategory
     reports_latency: bool = True
     latency_samples: int = 0  # +++ NEW: The latency this plugin reports in samples.

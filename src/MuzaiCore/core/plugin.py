@@ -1,39 +1,38 @@
-# file: src/MuzaiCore/core/plugin_instance.py
+# file: src/MuzaiCore/core/plugin.py
 from typing import Dict, List, Optional
-#from uuid import uuid4
 import uuid
 import numpy as np
 
-from ..interfaces.system import IPlugin, IParameter
+from ..interfaces.system import IPlugin, IParameter, IEventBus  # <-- 新增导入
 from ..models import PluginDescriptor, TransportContext, NotePlaybackInfo, Port
+from ..models.event_model import PluginEnabledChanged  # <-- 新增导入
 from .parameter import Parameter
 
 
 class Plugin(IPlugin):
     """
     The backend-agnostic domain model for a plugin instance.
-
-    This class represents a plugin in the project's data model. It holds all
-    stateful information, such as parameter values and enabled status, but
-    contains NO audio processing logic itself.
-
-    The actual DSP is handled by a backend-specific adapter or engine that
-    mirrors the state of this object.
     """
 
-    def __init__(self,
-                 descriptor: PluginDescriptor,
-                 node_id: Optional[str] = None):
+    def __init__(
+            self,
+            descriptor: PluginDescriptor,
+            event_bus: IEventBus,  # <-- 新增
+            node_id: Optional[str] = None):
         self._node_id = node_id or f"plugin_{uuid.uuid4()}"
         self.descriptor = descriptor
+        self._event_bus = event_bus  # <-- 新增
         self._is_enabled = True
 
         # Instantiate parameters from the descriptor's defaults
         self._parameters: Dict[str, IParameter] = {
-            name: Parameter(self._node_id, name, default_value)
+            name:
+            Parameter(owner_node_id=self._node_id,
+                      name=name,
+                      default_value=default_value,
+                      event_bus=self._event_bus)
             for name, default_value in descriptor.default_parameters.items()
         }
-        self._mixer_listeners: List['IMixerSync'] = []
 
     @property
     def node_id(self) -> str:
@@ -43,17 +42,14 @@ class Plugin(IPlugin):
     def is_enabled(self) -> bool:
         return self._is_enabled
 
-    def subscribe(self, listener: 'IMixerSync'):
-        """订阅插件状态变化事件"""
-        if listener not in self._mixer_listeners:
-            self._mixer_listeners.append(listener)
+    # subscribe 方法被移除
 
     def set_enabled(self, enabled: bool):
         if self._is_enabled != enabled:
             self._is_enabled = enabled
-            # 通知监听者
-            for listener in self._mixer_listeners:
-                listener.on_plugin_enabled_changed(self.node_id, enabled)
+            self._event_bus.publish(
+                PluginEnabledChanged(plugin_id=self.node_id,
+                                     is_enabled=enabled))
 
     def get_parameters(self) -> Dict[str, IParameter]:
         return self._parameters
@@ -71,9 +67,6 @@ class Plugin(IPlugin):
                       notes: List[NotePlaybackInfo],
                       context: TransportContext) -> np.ndarray:
         """
-        In the core domain model, a plugin does not process audio itself.
-        It acts as a placeholder in the signal chain. The actual processing
-        is delegated to a backend-specific implementation.
-        This method simply passes the audio through.
+        Pass-through implementation for the domain model.
         """
         return input_buffer

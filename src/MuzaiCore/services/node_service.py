@@ -24,8 +24,8 @@ from ..core.history.commands.all_commands import (
     RemoveInsertPluginCommand,
 )
 
-from ..core.track import InstrumentTrack, AudioTrack, BusTrack, VCATrack
-from ..core.plugin import PluginFactory
+from ..core.track import InstrumentTrack, AudioTrack, BusTrack
+from ..core.plugin import Plugin
 from ..models.plugin_model import PluginCategory
 
 

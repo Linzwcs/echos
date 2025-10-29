@@ -10,8 +10,16 @@ class ProjectState:
     """The complete, serializable state of a project."""
     project_id: str
     name: str
-    nodes: Dict[str, NodeState] = field(default_factory=dict)
-    routing_graph: List[Connection] = field(default_factory=list)
+
     tempo: float = 120.0
     time_signature_numerator: int = 4
     time_signature_denominator: int = 4
+
+    sample_rate: int
+    block_size: int
+
+    router: "Router"
+    timeline: "Timeline"
+    command_manager: "CommandManager"
+    engine: "AudioEngine"
+    event_bus: "EventBus"

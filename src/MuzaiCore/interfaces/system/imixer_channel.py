@@ -5,7 +5,7 @@ from typing import List, Dict
 from typing import Optional
 from .iparameter import IParameter
 from .iaudio_processor import IAudioProcessor
-from .inode import IPlugin
+
 from .isync import IMixerSync
 
 
@@ -27,7 +27,7 @@ class IMixerChannel(IAudioProcessor, ABC):
 
     @property
     @abstractmethod
-    def inserts(self) -> List[IPlugin]:
+    def inserts(self) -> List["IPlugin"]:
         """The list of insert plugins on this channel."""
         pass
 
@@ -70,7 +70,7 @@ class IMixerChannel(IAudioProcessor, ABC):
         pass
 
     @abstractmethod
-    def add_insert(self, plugin: IPlugin, index: Optional[int] = None):
+    def add_insert(self, plugin: "IPlugin", index: Optional[int] = None):
         pass
 
     @abstractmethod

@@ -177,3 +177,42 @@ class RenameNodeCommand(ICommand):
     @property
     def description(self) -> str:
         return f"Rename: '{self._old_name}' → '{self._new_name}'"
+
+
+class AssignTrackToVCACommand(ICommand):
+    """分配轨道到VCA的命令"""
+
+    def __init__(self,
+                 vca_track: VCATrack,
+                 target_track_id: str,
+                 mode: VCAControlMode = VCAControlMode.ALL):
+        self._vca = vca_track
+        self._target_id = target_track_id
+        self._mode = mode
+        self._executed = False
+
+    def execute(self) -> bool:
+        if self._executed:
+            return False
+
+        self._vca.add_controlled_track(self._target_id, self._mode)
+        self._executed = True
+        return True
+
+    def undo(self) -> bool:
+        if not self._executed:
+            return False
+
+        self._vca.remove_controlled_track(self._target_id)
+        self._executed = False
+        return True
+
+    def can_merge_with(self, other: ICommand) -> bool:
+        return False
+
+    def merge_with(self, other: ICommand):
+        raise NotImplementedError()
+
+    @property
+    def description(self) -> str:
+        return f"Assign track to VCA '{self._vca.name}'"
