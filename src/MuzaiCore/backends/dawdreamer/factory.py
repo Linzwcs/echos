@@ -5,7 +5,7 @@ domain model objects from `MuzaiCore.core`.
 """
 from ...interfaces.system import INodeFactory, IPlugin, ITrack
 from ...models import PluginDescriptor
-from ...core.track import InstrumentTrack, AudioTrack, BusTrack, VCATrack
+from ...core.track import InstrumentTrack, AudioTrack, BusTrack
 from ...core.plugin import Plugin
 
 
@@ -25,7 +25,7 @@ class DawDreamerNodeFactory(INodeFactory):
         return BusTrack(name=name)
 
     def create_vca_track(self, name: str) -> ITrack:
-        return VCATrack(name=name)
+        return BusTrack(name=name)
 
     def create_plugin_instance(self, descriptor: PluginDescriptor) -> IPlugin:
         """

@@ -2,7 +2,7 @@
 
 from ..models import ToolResponse
 from ..interfaces.system import IDAWManager
-from ..interfaces.service import IHistoryService
+from ..interfaces.services import IHistoryService
 
 
 class HistoryService(IHistoryService):

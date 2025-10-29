@@ -1,7 +1,7 @@
 # file: src/MuzaiCore/persistence/persistence_service.py
 import json
 from typing import Optional
-from ..interfaces.service import IPersistenceService
+from ..interfaces.services import IPersistenceService
 from ..models import ProjectState
 
 

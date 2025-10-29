@@ -20,7 +20,7 @@ from .device_model import AudioDevice, IOChannel, MIDIDevice
 from .engine_model import NotePlaybackInfo, TransportContext, TransportStatus
 
 # from node_model
-from .node_model import NodeState, PluginState, TrackState, TrackRecordMode
+from .node_model import NodeState, PluginState, TrackState
 
 # from parameter_model
 from .parameter_model import (

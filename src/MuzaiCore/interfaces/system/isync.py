@@ -1,10 +1,9 @@
 # file: src/MuzaiCore/interfaces/system/igraph_sync.py
 from abc import ABC, abstractmethod
 from typing import Any, Optional, List
-
-from .inode import INode, IPlugin
-from .iproject import IProject
+from ...interfaces.system.ievent_bus import IEventBus
 from ...models import Connection, Note, AnyClip
+from ...models import event_model
 
 
 class IGraphSync(ABC):
@@ -16,22 +15,22 @@ class IGraphSync(ABC):
     """
 
     @abstractmethod
-    def on_node_added(self, node: INode):
+    def on_node_added(self, event: event_model.NodeAdded):
         """Called when a node is added to the logical graph."""
         pass
 
     @abstractmethod
-    def on_node_removed(self, node_id: str):
+    def on_node_removed(self, event: event_model.NodeRemoved):
         """Called when a node is removed from the logical graph."""
         pass
 
     @abstractmethod
-    def on_connection_added(self, connection: Connection):
+    def on_connection_added(self, event: event_model.ConnectionAdded):
         """Called when a connection is made in the logical graph."""
         pass
 
     @abstractmethod
-    def on_connection_removed(self, connection: Connection):
+    def on_connection_removed(self, event: event_model.ConnectionRemoved):
         """Called when a connection is broken in the logical graph."""
         pass
 
@@ -40,25 +39,25 @@ class IMixerSync(ABC):
     """Listens to changes within a node's mixer channel or a plugin's state."""
 
     @abstractmethod
-    def on_insert_added(self, owner_node_id: str, plugin: IPlugin, index: int):
+    def on_insert_added(self, event: event_model.InsertAdded):
         pass
 
     @abstractmethod
-    def on_insert_removed(self, owner_node_id: str, plugin_id: str):
+    def on_insert_removed(self, event: event_model.InsertRemoved):
         pass
 
     @abstractmethod
-    def on_insert_moved(self, owner_node_id: str, plugin_id: str,
-                        old_index: int, new_index: int):
+    def on_insert_moved(self, event: event_model.InsertMoved):
+        """Called when a plugin is re-ordered in an insert chain."""
         pass
 
     @abstractmethod
-    def on_plugin_enabled_changed(self, plugin_id: str, is_enabled: bool):
+    def on_plugin_enabled_changed(self,
+                                  event: event_model.PluginEnabledChanged):
         pass
 
     @abstractmethod
-    def on_parameter_changed(self, owner_node_id: str, param_name: str,
-                             value: Any):
+    def on_parameter_changed(self, event: event_model.ParameterChanged):
         pass
 
 
@@ -69,12 +68,12 @@ class ITransportSync(ABC):
     """
 
     @abstractmethod
-    def on_tempo_changed(self, beat: float, new_bpm: float):
+    def on_tempo_changed(self, event: event_model.TempoChanged):
         ...
 
     @abstractmethod
-    def on_time_signature_changed(self, beat: float, numerator: int,
-                                  denominator: int):
+    def on_time_signature_changed(self,
+                                  event: event_model.TimeSignatureChanged):
         ...
 
 
@@ -85,11 +84,11 @@ class ITrackSync(ABC):
     """
 
     @abstractmethod
-    def on_clip_added(self, owner_track_id: str, clip: AnyClip):
+    def on_clip_added(self, event: event_model.ClipAdded):
         ...
 
     @abstractmethod
-    def on_clip_removed(self, owner_track_id: str, clip_id: str):
+    def on_clip_removed(self, event: event_model.ClipRemoved):
         ...
 
 
@@ -100,23 +99,23 @@ class IClipSync(ABC):
     """
 
     @abstractmethod
-    def on_notes_added(self, owner_clip_id: str, notes: List[Note]):
+    def on_notes_added(self, event: event_model.NoteAdded):
         ...
 
     @abstractmethod
-    def on_notes_removed(self, owner_clip_id: str, notes: List[Note]):
+    def on_notes_removed(self, event: event_model.NoteRemoved):
         ...
 
 
 class IProjectSync(ABC):
 
     @abstractmethod
-    def on_project_loaded(self, project: IProject):
+    def on_project_loaded(self, event: event_model.ProjectLoaded):
         """A special event to trigger a full, clean sync from a project state."""
         pass
 
     @abstractmethod
-    def on_project_closed(self, project: IProject):
+    def on_project_closed(self, event: event_model.ProjectClosed):
         """A special event to trigger a full cleanup of the backend."""
         pass
 
@@ -124,7 +123,6 @@ class IProjectSync(ABC):
 class ISyncController(
         IGraphSync,
         IMixerSync,
-        ITransportSync,
         ITransportSync,
         IClipSync,
         IProjectSync,
@@ -136,3 +134,14 @@ class ISyncController(
     and translates them for the backend.
     """
     pass
+
+    @abstractmethod
+    def register_event_handlers(self, event_bus: IEventBus):
+        """
+        Subscribes the controller's methods to the domain event bus.
+        This method is called once upon initialization to wire up the system.
+        
+        This abstract method FORCES every implementation to explicitly define
+        how it reacts to domain events.
+        """
+        pass

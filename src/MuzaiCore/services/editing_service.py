@@ -1,5 +1,5 @@
 from typing import Any, List, Dict
-from ..interfaces.service import IEditingService
+from ..interfaces.services import IEditingService
 from ..interfaces.system import IDAWManager
 from ..models import MIDIClip, Note, ToolResponse
 from ..core.history.commands.all_commands import (

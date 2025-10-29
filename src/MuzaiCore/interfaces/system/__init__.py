@@ -24,10 +24,13 @@ from .irouter import IRouter
 from .itimeline import ITimeline
 from .ipersistence import IProjectSerializer
 from .itransport import ITransport
+from .isync import ISyncController
+from .ievent_bus import IEventBus
 
 __all__ = [
     "IAudioEngine", "IAudioProcessor", "ICommand", "ICommandManager",
     "IDAWManager", "IDeviceManager", "IMixerChannel", "INode", "INodeFactory",
     "IParameter", "IPlugin", "IPluginRegistry", "IProject", "IRouter",
-    "ITimeline", "ITrack", "IProjectSerializer", "ITransport"
+    "ITimeline", "ITrack", "IProjectSerializer", "ITransport",
+    "ISyncController", "IEventBus"
 ]

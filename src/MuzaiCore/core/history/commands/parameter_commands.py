@@ -99,3 +99,44 @@ class AddAutomationPointCommand(ICommand):
     @property
     def description(self) -> str:
         return f"Add automation point to '{self._parameter.name}' at beat {self._beat}"
+
+
+class SetVCAParameterCommand(ICommand):
+    """设置VCA参数的命令"""
+
+    def __init__(self, vca_param: IParameter, new_value):
+        self._param = vca_param
+        self._new_value = new_value
+        self._old_value = vca_param.value
+        self._executed = False
+
+    def execute(self) -> bool:
+        if self._executed:
+            return False
+
+        self._param._set_value_internal(self._new_value)
+        self._executed = True
+        return True
+
+    def undo(self) -> bool:
+        if not self._executed:
+            return False
+
+        self._param._set_value_internal(self._old_value)
+        self._executed = False
+        return True
+
+    def can_merge_with(self, other: ICommand) -> bool:
+        """VCA参数也支持命令合并"""
+        return (isinstance(other, SetVCAParameterCommand)
+                and self._param is other._param and self._executed
+                and not other._executed)
+
+    def merge_with(self, other: ICommand):
+        if not self.can_merge_with(other):
+            raise ValueError("Cannot merge commands")
+        self._new_value = other._new_value
+
+    @property
+    def description(self) -> str:
+        return f"Set VCA '{self._param.name}' to {self._new_value}"
