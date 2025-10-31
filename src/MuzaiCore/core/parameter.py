@@ -1,63 +1,127 @@
 # file: src/MuzaiCore/core/parameter.py
-from typing import Any, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Tuple
 from enum import Enum
 import bisect
 
+import threading
+import time
+from collections import defaultdict
+
 from ..models.parameter_model import AutomationPoint, AutomationLane, AutomationCurveType
 from ..models.engine_model import TransportContext
-from ..models.event_model import ParameterChanged  # <-- 新增导入
-from ..interfaces.system import IParameter, ICommand, IEventBus  # <-- 新增导入
+from ..models.event_model import ParameterChanged
+from ..interfaces.system import IParameter, ICommand, IEventBus
+from ..interfaces.system.ilifecycle import ILifecycleAware
 
 
-class ParameterType(Enum):
-    """参数类型枚举"""
-    FLOAT = "float"
-    INT = "int"
-    BOOL = "bool"
-    ENUM = "enum"
-    STRING = "string"
+class ParameterBatchUpdater:
+    """
+    参数批量更新器
+    收集短时间内的参数变化，批量发布事件
+    """
+
+    def __init__(self, event_bus: 'IEventBus', flush_interval: float = 0.016):
+        self._event_bus = event_bus
+        self._flush_interval = flush_interval
+        self._pending_changes: Dict[Tuple[str, str], Any] = {}
+        self._lock = threading.Lock()
+        self._flush_thread: Optional[threading.Thread] = None
+        self._stop_flag = threading.Event()
+        self._is_running = False
+
+    def start(self):
+        """启动批量更新器"""
+        if self._is_running:
+            return
+
+        self._stop_flag.clear()
+        self._is_running = True
+        self._flush_thread = threading.Thread(target=self._flush_loop,
+                                              daemon=True)
+        self._flush_thread.start()
+
+    def stop(self):
+        """停止批量更新器"""
+        if not self._is_running:
+            return
+
+        self._stop_flag.set()
+        self._is_running = False
+
+        if self._flush_thread:
+            self._flush_thread.join(timeout=1.0)
+
+        self.flush_now()
+
+    def queue_change(self, node_id: str, param_name: str, new_value: Any):
+        """队列化参数变化"""
+        with self._lock:
+            self._pending_changes[(node_id, param_name)] = new_value
+
+    def flush_now(self):
+        """立即刷新所有待处理的变化"""
+        with self._lock:
+            if not self._pending_changes:
+                return
+
+            changes = self._pending_changes.copy()
+            self._pending_changes.clear()
+
+        from ..models.event_model import ParameterChanged
+        for (node_id, param_name), new_value in changes.items():
+            self._event_bus.publish(
+                ParameterChanged(owner_node_id=node_id,
+                                 param_name=param_name,
+                                 new_value=new_value))
+
+    def _flush_loop(self):
+        """后台刷新循环"""
+        while not self._stop_flag.is_set():
+            time.sleep(self._flush_interval)
+            self.flush_now()
 
 
 class Parameter(IParameter):
     """
-    表示节点的单个可自动化参数
-    支持完整的自动化、调制和值映射
+    优化后的参数类
+    支持批量更新和立即模式
     """
 
-    def __init__(
-            self,
-            owner_node_id: str,  # <-- 新增 owner_node_id
-            name: str,
-            default_value: Any,
-            event_bus: Optional[IEventBus] = None,  # <-- 新增 event_bus
-            min_value: Optional[Any] = None,
-            max_value: Optional[Any] = None,
-            param_type: ParameterType = ParameterType.FLOAT,
-            unit: str = "",
-            display_format: str = "{:.2f}",
-            value_mapper: Optional[Callable] = None):
+    _batch_updater: Optional[ParameterBatchUpdater] = None
 
+    def __init__(self,
+                 owner_node_id: str,
+                 name: str,
+                 default_value: Any,
+                 min_value: Optional[Any] = None,
+                 max_value: Optional[Any] = None,
+                 unit: str = ""):
+        super().__init__()
         self._owner_node_id = owner_node_id
         self._name = name
         self._default_value = default_value
-        self._base_value = default_value  # 基础值（无自动化）
-        self._event_bus = event_bus
+        self._base_value = default_value
         self._min_value = min_value
         self._max_value = max_value
-        self._param_type = param_type
         self._unit = unit
-        self._display_format = display_format
-        self._value_mapper = value_mapper  # 用于非线性映射（如对数刻度）
 
-        # 自动化数据
         self._automation_lane = AutomationLane()
+        self._immediate_mode = False
+        self._change_callbacks = []
 
-        # 调制（来自LFO、包络等）
-        self._modulation_amount = 0.0
-        self._modulation_sources: List[str] = []  # 调制源ID列表
+    @classmethod
+    def initialize_batch_updater(cls, event_bus: 'IEventBus'):
+        """初始化全局批量更新器"""
+        if cls._batch_updater is None:
+            cls._batch_updater = ParameterBatchUpdater(event_bus)
+            cls._batch_updater.start()
 
-        # 值变化回调
-        self._change_callbacks: List[Callable] = []
+    @classmethod
+    def shutdown_batch_updater(cls):
+        """关闭全局批量更新器"""
+        if cls._batch_updater:
+            cls._batch_updater.stop()
+            cls._batch_updater = None
 
     @property
     def name(self) -> str:
@@ -65,7 +129,6 @@ class Parameter(IParameter):
 
     @property
     def value(self) -> Any:
-        """返回基础值（无自动化）"""
         return self._base_value
 
     @property
@@ -73,186 +136,154 @@ class Parameter(IParameter):
         return self._automation_lane
 
     @property
-    def param_type(self) -> ParameterType:
-        return self._param_type
-
-    @property
-    def min_value(self) -> Any:
-        return self._min_value
-
-    @property
-    def max_value(self) -> Any:
+    def max_value(self):
         return self._max_value
 
     @property
-    def unit(self) -> str:
+    def min_value(self):
+        return self._min_value
+
+    @property
+    def unit(self):
         return self._unit
 
-    def get_value_at(self, context: TransportContext) -> Any:
+    def set_value(self, new_value: Any, immediate: bool = False):
         """
-        计算并返回参数在特定时间点的值
-        考虑基础值、自动化和调制
+        设置参数值
+        
+        Args:
+            new_value: 新值
+            immediate: 是否立即发布事件
         """
-        # 1. 从基础值开始
-        final_value = self._base_value
-
-        # 2. 如果启用了自动化，从自动化lane读取
-        if self._automation_lane.is_enabled and self._automation_lane.points:
-            automated_value = self._interpolate_automation(
-                context.current_beat)
-            final_value = automated_value
-
-        # 3. 应用调制
-        if self._modulation_amount != 0.0:
-            pass
-
-        # 4. 限制在范围内
-        final_value = self._clamp(final_value)
-
-        # 5. 应用值映射（如果有）
-        if self._value_mapper:
-            final_value = self._value_mapper(final_value)
-
-        return final_value
-
-    def _interpolate_automation(self, beat: float) -> Any:
-        points = self._automation_lane.points
-        if not points:
-            return self._base_value
-
-        sorted_points = sorted(points, key=lambda p: p.beat)
-
-        if beat <= sorted_points[0].beat:
-            return sorted_points[0].value
-
-        if beat >= sorted_points[-1].beat:
-            return sorted_points[-1].value
-
-        for i in range(len(sorted_points) - 1):
-            p1 = sorted_points[i]
-            p2 = sorted_points[i + 1]
-
-            if p1.beat <= beat <= p2.beat:
-                return self._interpolate_between_points(p1, p2, beat)
-
-        return self._base_value
-
-    def _interpolate_between_points(self, p1: AutomationPoint,
-                                    p2: AutomationPoint, beat: float) -> Any:
-        t = (beat - p1.beat) / (p2.beat -
-                                p1.beat) if p2.beat != p1.beat else 0.0
-
-        if p1.curve_type == AutomationCurveType.LINEAR:
-            return p1.value + (p2.value - p1.value) * t
-        elif p1.curve_type == AutomationCurveType.EXPONENTIAL:
-            curve = p1.curve_shape
-            if curve > 0:
-                t = t**(1 + curve * 2)
-            else:
-                t = 1 - (1 - t)**(1 - curve * 2)
-            return p1.value + (p2.value - p1.value) * t
-        else:
-            return p1.value + (p2.value - p1.value) * t
-
-    def _clamp(self, value: Any) -> Any:
-        if self._min_value is not None and value < self._min_value:
-            return self._min_value
-        if self._max_value is not None and value > self._max_value:
-            return self._max_value
-        return value
-
-    # set_owner 方法不再需要，因为 owner_id 在构造时传入
-
-    def _set_value_internal(self, new_value: Any):
         old_value = self._base_value
         clamped_value = self._clamp(new_value)
+
         if old_value == clamped_value:
             return
 
         self._base_value = clamped_value
 
-        # 通知变化回调 (保留以支持内部逻辑)
+        # 执行回调
         for callback in self._change_callbacks:
-            callback(old_value, self._base_value)
+            try:
+                callback(old_value, self._base_value)
+            except Exception as e:
+                print(f"Parameter callback error: {e}")
 
-        # 发布领域事件
-        if self._event_bus:
-            event = ParameterChanged(owner_node_id=self._owner_node_id,
+        # 发布事件
+        if self.is_mounted:
+            if immediate or self._immediate_mode:
+                # 立即发布
+                from ..models.event_model import ParameterChanged
+                self._event_bus.publish(
+                    ParameterChanged(owner_node_id=self._owner_node_id,
                                      param_name=self._name,
-                                     new_value=self._base_value)
-            self._event_bus.publish(event)
+                                     new_value=self._base_value))
+            elif self._batch_updater:
+                # 批量更新
+                self._batch_updater.queue_change(self._owner_node_id,
+                                                 self._name, self._base_value)
+
+    def get_value_at(self, context: TransportContext) -> Any:
+        """计算在特定时间点的值（考虑自动化）"""
+        if not self._automation_lane.is_enabled or not self._automation_lane.points:
+            return self._base_value
+
+        return self._interpolate_automation(context.current_beat)
 
     def add_automation_point(self,
                              beat: float,
                              value: Any,
                              curve_type: str = AutomationCurveType.LINEAR,
                              curve_shape: float = 0.0):
+        """添加自动化点"""
         point = AutomationPoint(beat=beat,
                                 value=self._clamp(value),
                                 curve_type=curve_type,
                                 curve_shape=curve_shape)
         self._automation_lane.points.append(point)
         self._automation_lane.points.sort(key=lambda p: p.beat)
-        print(
-            f"Added automation point to '{self._name}' at beat {beat}: {value}"
-        )
 
     def remove_automation_point_at(self,
                                    beat: float,
                                    tolerance: float = 0.01) -> bool:
+        """移除指定位置的自动化点"""
         for i, point in enumerate(self._automation_lane.points):
             if abs(point.beat - beat) <= tolerance:
                 self._automation_lane.points.pop(i)
-                print(
-                    f"Removed automation point from '{self._name}' at beat {beat}"
-                )
                 return True
         return False
 
     def clear_automation(self):
+        """清除所有自动化"""
         self._automation_lane.points.clear()
-        print(f"Cleared automation for '{self._name}'")
 
     def enable_automation(self, enabled: bool = True):
+        """启用/禁用自动化"""
         self._automation_lane.is_enabled = enabled
-        status = "enabled" if enabled else "disabled"
-        print(f"Automation {status} for '{self._name}'")
 
-    def add_modulation_source(self, source_id: str, amount: float = 0.5):
-        if source_id not in self._modulation_sources:
-            self._modulation_sources.append(source_id)
-            self._modulation_amount = amount
-            print(
-                f"Added modulation source {source_id[:8]} to '{self._name}' with amount {amount}"
-            )
+    def enable_immediate_mode(self):
+        """启用立即模式（用于Command执行）"""
+        self._immediate_mode = True
 
-    def remove_modulation_source(self, source_id: str):
-        if source_id in self._modulation_sources:
-            self._modulation_sources.remove(source_id)
-            print(
-                f"Removed modulation source {source_id[:8]} from '{self._name}'"
-            )
+    def disable_immediate_mode(self):
+        """禁用立即模式"""
+        self._immediate_mode = False
 
     def add_change_callback(self, callback: Callable):
+        """添加值变化回调"""
         self._change_callbacks.append(callback)
 
-    def create_set_value_command(self, new_value: Any) -> ICommand:
-        from ..core.history.commands.parameter_commands import SetParameterCommand
-        return SetParameterCommand(self, new_value)
-
-    def get_display_value(self) -> str:
-        value = self._base_value
-        if self._param_type == ParameterType.BOOL:
-            return "On" if value else "Off"
-        elif self._param_type == ParameterType.ENUM:
-            return str(value)
-        else:
-            formatted = self._display_format.format(value)
-            return f"{formatted} {self._unit}".strip()
-
     def reset_to_default(self):
-        self._set_value_internal(self._default_value)
-        print(f"Reset '{self._name}' to default: {self._default_value}")
+        """重置到默认值"""
+        self.set_value(self._default_value, immediate=True)
+
+    def _clamp(self, value: Any) -> Any:
+        """限制值在有效范围内"""
+        if self._min_value is not None and value < self._min_value:
+            return self._min_value
+        if self._max_value is not None and value > self._max_value:
+            return self._max_value
+        return value
+
+    def _interpolate_automation(self, beat: float) -> Any:
+        """插值自动化曲线"""
+        points = sorted(self._automation_lane.points, key=lambda p: p.beat)
+
+        if not points:
+            return self._base_value
+
+        if beat <= points[0].beat:
+            return points[0].value
+
+        if beat >= points[-1].beat:
+            return points[-1].value
+
+        # 找到两个包围点
+        for i in range(len(points) - 1):
+            p1 = points[i]
+            p2 = points[i + 1]
+
+            if p1.beat <= beat <= p2.beat:
+                t = (beat - p1.beat) / (p2.beat -
+                                        p1.beat) if p2.beat != p1.beat else 0.0
+
+                if p1.curve_type == AutomationCurveType.LINEAR:
+                    return p1.value + (p2.value - p1.value) * t
+                elif p1.curve_type == AutomationCurveType.EXPONENTIAL:
+                    curve = p1.curve_shape
+                    if curve > 0:
+                        t = t**(1 + curve * 2)
+                    else:
+                        t = 1 - (1 - t)**(1 - curve * 2)
+                    return p1.value + (p2.value - p1.value) * t
+                else:
+                    return p1.value
+
+        return self._base_value
+
+    def _get_children(self) -> List[ILifecycleAware]:
+        return []
 
     def __repr__(self) -> str:
         return f"Parameter(name='{self._name}', value={self._base_value}, type={self._param_type.value})"
@@ -276,10 +307,8 @@ class VCAParameter(Parameter):
                          event_bus=event_bus,
                          min_value=min_value,
                          max_value=max_value)
-        # VCA参数的事件通知由基类处理
 
 
-# (ParameterGroup class remains unchanged)
 class ParameterGroup:
     """
     参数组，用于将相关参数组织在一起

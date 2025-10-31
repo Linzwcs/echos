@@ -1,63 +1,53 @@
 # file: src/MuzaiCore/core/mixer.py
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
 import uuid
-import numpy as np
 
 from .parameter import Parameter
-from .plugin import Plugin
-from ..interfaces.system import IParameter, IMixerChannel, IPlugin, IEventBus  # <-- 新增导入
-from ..models import NotePlaybackInfo, TransportContext
-from ..models.event_model import InsertAdded, InsertRemoved, InsertMoved  # <-- 新增导入
-
-
-@dataclass
-class Send:
-    """表示从一个通道到总线的发送"""
-    send_id: str
-    target_bus_node_id: str
-    level: Parameter
-    is_post_fader: bool = True
-    is_enabled: bool = True
+from ..interfaces import IMixerChannel, IPlugin, IParameter, IEventBus
+from ..interfaces.system.ilifecycle import ILifecycleAware
+from ..interfaces.system.inode import IPlugin
+from ..models.event_model import (InsertAdded, InsertRemoved, InsertMoved,
+                                  SendAdded, SendRemoved)
+from ..models.mixer_model import Send
 
 
 class MixerChannel(IMixerChannel):
     """
-    混音器通道条的具体实现
+    优化后的混音器通道
+    自动管理参数和插件的生命周期
     """
 
-    def __init__(
-            self,
-            event_bus: IEventBus,  # <-- 新增
-            channel_id: Optional[str] = None):
-        self._channel_id = channel_id or str(uuid.uuid4())
-        self._event_bus = event_bus  # <-- 新增
+    def __init__(self, channel_id: Optional[str] = None):
+        super().__init__()
+        self._channel_id = channel_id or f"channel_{uuid.uuid4()}"
 
-        self._volume = Parameter(self._channel_id, "volume", -6.0, event_bus)
-        self._pan = Parameter(self._channel_id, "pan", 0.0, event_bus)
-        self.input_gain = Parameter(self._channel_id, "input_gain", 0.0,
-                                    event_bus)
-        self.stereo_width = Parameter(self._channel_id, "stereo_width", 1.0,
-                                      event_bus)
+        # 核心参数
+        self._volume = Parameter(self._channel_id, "volume", 0.0, -100.0, 12.0,
+                                 "dB")
+        self._pan = Parameter(self._channel_id, "pan", 0.0, -1.0, 1.0)
+        self._input_gain = Parameter(self._channel_id, "input_gain", 0.0,
+                                     -100.0, 12.0, "dB")
 
+        # 状态
         self.is_muted = False
         self.is_solo = False
+
+        # 插件链
         self._inserts: List[IPlugin] = []
+
+        # 发送
         self._sends: List[Send] = []
-        self._group_id: Optional[str] = None
-        self._vca_controller_id: Optional[str] = None
-        self.automation_mode = "read"
 
     @property
     def channel_id(self) -> str:
         return self._channel_id
 
     @property
-    def volume(self) -> IParameter:
+    def volume(self) -> Parameter:
         return self._volume
 
     @property
-    def pan(self) -> IParameter:
+    def pan(self) -> Parameter:
         return self._pan
 
     @property
@@ -68,159 +58,150 @@ class MixerChannel(IMixerChannel):
     def sends(self) -> List[Send]:
         return list(self._sends)
 
-    @property
-    def group_id(self) -> Optional[str]:
-        return self._group_id
-
-    @property
-    def vca_controller_id(self) -> Optional[str]:
-        return self._vca_controller_id
-
-    def get_parameters(self) -> Dict[str, IParameter]:
+    def get_parameters(self) -> Dict[str, Parameter]:
+        """获取所有参数（包括插件参数）"""
         params = {
-            "volume": self.volume,
-            "pan": self.pan,
-            "input_gain": self.input_gain,
-            "stereo_width": self.stereo_width
+            "volume": self._volume,
+            "pan": self._pan,
+            "input_gain": self._input_gain
         }
+
         for i, plugin in enumerate(self._inserts):
-            for p_name, p_obj in plugin.get_parameters().items():
-                params[f"insert_{i}_{p_name}"] = p_obj
+            for name, param in plugin.get_parameters().items():
+                params[f"insert_{i}_{name}"] = param
+
         for i, send in enumerate(self._sends):
             params[f"send_{i}_level"] = send.level
+
         return params
 
-    def process_block(self, input_buffer: np.ndarray,
-                      midi_events: List[NotePlaybackInfo],
-                      context: TransportContext) -> Optional[np.ndarray]:
-        if self.is_muted:
-            return np.zeros_like(
-                input_buffer) if input_buffer is not None else None
-
-        processed_buffer = self._apply_input_gain(input_buffer, context)
-        for plugin in self._inserts:
-            if plugin.is_enabled:
-                processed_buffer = plugin.process_block(
-                    processed_buffer, midi_events, context)
-
-        pre_fader_sends = [
-            s for s in self._sends if not s.is_post_fader and s.is_enabled
-        ]
-        self._process_sends(pre_fader_sends, processed_buffer, context)
-
-        final_output = self._apply_fader(processed_buffer, context)
-
-        post_fader_sends = [
-            s for s in self._sends if s.is_post_fader and s.is_enabled
-        ]
-        self._process_sends(post_fader_sends, final_output, context)
-
-        return final_output
-
-    def _apply_input_gain(self, buffer: Optional[np.ndarray],
-                          context: TransportContext) -> Optional[np.ndarray]:
-        return buffer
-
-    def _apply_fader(self, buffer: Optional[np.ndarray],
-                     context: TransportContext) -> Optional[np.ndarray]:
-        return buffer
-
-    def _process_sends(self, sends: List[Send], buffer: Optional[np.ndarray],
-                       context: TransportContext):
-        pass
-
-    # subscribe 方法被移除
-
     def add_insert(self, plugin: IPlugin, index: Optional[int] = None):
-        if index is None or index >= len(self._inserts):
+        """添加插件到插入链"""
+        if index is None:
             self._inserts.append(plugin)
             actual_index = len(self._inserts) - 1
         else:
             self._inserts.insert(index, plugin)
             actual_index = index
 
-        # 发布事件
-        self._event_bus.publish(
-            InsertAdded(owner_node_id=self._channel_id,
-                        plugin=plugin,
-                        index=actual_index))
+        # 如果通道已挂载，立即挂载插件
+        if self.is_mounted:
+            plugin.mount(self._event_bus)
 
-    def remove_insert(self, plugin_instance_id: str) -> bool:
+            from ..models.event_model import InsertAdded
+            self._event_bus.publish(
+                InsertAdded(owner_node_id=self._channel_id,
+                            plugin=plugin,
+                            index=actual_index))
+
+    def remove_insert(self, plugin_id: str) -> bool:
+        """移除插件"""
         for i, plugin in enumerate(self._inserts):
-            if plugin.node_id == plugin_instance_id:
-                self._inserts.pop(i)
-                # 发布事件
-                self._event_bus.publish(
-                    InsertRemoved(owner_node_id=self._channel_id,
-                                  plugin_id=plugin_instance_id))
+            if plugin.node_id == plugin_id:
+                removed = self._inserts.pop(i)
+                removed.unmount()
+
+                if self.is_mounted:
+                    from ..models.event_model import InsertRemoved
+                    self._event_bus.publish(
+                        InsertRemoved(owner_node_id=self._channel_id,
+                                      plugin_id=plugin_id))
                 return True
         return False
 
-    def move_insert(self, plugin_instance_id: str, new_index: int) -> bool:
+    def move_insert(self, plugin_id: str, new_index: int) -> bool:
+        """移动插件位置"""
         old_index = -1
         plugin_to_move = None
+
         for i, plugin in enumerate(self._inserts):
-            if plugin.node_id == plugin_instance_id:
+            if plugin.node_id == plugin_id:
                 plugin_to_move = plugin
                 old_index = i
                 break
 
         if plugin_to_move:
             self._inserts.pop(old_index)
-            # 确保 new_index 在有效范围内
-            if new_index > old_index:
-                new_index -= 1
             actual_new_index = max(0, min(new_index, len(self._inserts)))
             self._inserts.insert(actual_new_index, plugin_to_move)
 
-            # 发布事件
-            self._event_bus.publish(
-                InsertMoved(owner_node_id=self._channel_id,
-                            plugin_id=plugin_instance_id,
-                            old_index=old_index,
-                            new_index=actual_new_index))
+            if self.is_mounted:
+                from ..models.event_model import InsertMoved
+                self._event_bus.publish(
+                    InsertMoved(owner_node_id=self._channel_id,
+                                plugin_id=plugin_id,
+                                old_index=old_index,
+                                new_index=actual_new_index))
             return True
         return False
 
-    def add_send(self,
-                 target_bus_node_id: str,
-                 is_post_fader: bool = True) -> Send:
-        send_level_param = Parameter(owner_node_id=self.channel_id,
-                                     name=f"send_to_{target_bus_node_id[:8]}",
-                                     default_value=-100.0,
-                                     event_bus=self._event_bus)
-        new_send = Send(send_id=str(uuid.uuid4()),
-                        target_bus_node_id=target_bus_node_id,
-                        is_post_fader=is_post_fader,
-                        level=send_level_param)
-        self._sends.append(new_send)
-        # 注意: 尚未为 Send 创建专门的事件，因此这里不发布事件
-        return new_send
+    def add_send(self, target_bus_id: str, is_post_fader: bool = True) -> Send:
+        """添加发送"""
+        send_level = Parameter(owner_node_id=self._channel_id,
+                               name=f"send_to_{target_bus_id[:8]}",
+                               default_value=-100.0,
+                               min_value=-100.0,
+                               max_value=12.0,
+                               unit="dB")
+
+        send = Send(send_id=f"send_{uuid.uuid4()}",
+                    target_bus_node_id=target_bus_id,
+                    level=send_level,
+                    is_post_fader=is_post_fader)
+
+        self._sends.append(send)
+
+        # 如果通道已挂载，立即挂载发送的level参数
+        if self.is_mounted:
+            send_level.mount(self._event_bus)
+
+            from ..models.event_model import SendAdded
+            self._event_bus.publish(
+                SendAdded(owner_node_id=self._channel_id, send=send))
+
+        return send
 
     def remove_send(self, send_id: str) -> bool:
+        """移除发送"""
         for i, send in enumerate(self._sends):
             if send.send_id == send_id:
-                self._sends.pop(i)
-                # 注意: 尚未为 Send 创建专门的事件，因此这里不发布事件
+                removed = self._sends.pop(i)
+                removed.level.unmount()
+
+                if self.is_mounted:
+                    from ..models.event_model import SendRemoved
+                    self._event_bus.publish(
+                        SendRemoved(owner_node_id=self._channel_id,
+                                    send_id=send_id))
                 return True
         return False
 
-    def set_group(self, group_id: Optional[str]):
-        """将此通道分配到一个编组"""
-        self._group_id = group_id
-        if group_id:
-            print(
-                f"Channel {self.channel_id[:8]} assigned to group {group_id[:8]}"
-            )
-        else:
-            print(f"Channel {self.channel_id[:8]} removed from group")
+    def to_dict(self) -> dict:
+        """序列化为字典"""
+        return {
+            "channel_id":
+            self._channel_id,
+            "volume":
+            self._volume.value,
+            "pan":
+            self._pan.value,
+            "is_muted":
+            self.is_muted,
+            "is_solo":
+            self.is_solo,
+            "inserts": [plugin.to_dict() for plugin in self._inserts],
+            "sends": [{
+                "send_id": send.send_id,
+                "target": send.target_bus_node_id,
+                "level": send.level.value,
+                "post_fader": send.is_post_fader
+            } for send in self._sends]
+        }
 
-    def set_vca_controller(self, vca_id: Optional[str]):
-        """将此通道分配给一个VCA控制器"""
-        self._vca_controller_id = vca_id
-        if vca_id:
-            print(
-                f"Channel {self.channel_id[:8]} is now controlled by VCA {vca_id[:8]}"
-            )
-        else:
-            print(f"Channel {self.channel_id[:8]} removed from VCA control")
+    def _get_children(self) -> List[ILifecycleAware]:
+        """返回所有子组件"""
+        children = [self._volume, self._pan, self._input_gain]
+        children.extend(self._inserts)
+        for send in self._sends:
+            children.append(send.level)
+        return children

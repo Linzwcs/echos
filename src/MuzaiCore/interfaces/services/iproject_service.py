@@ -21,7 +21,3 @@ class IProjectService(IService):
     @abstractmethod
     def close_project(self, project_id: str) -> ToolResponse:
         pass
-
-    @abstractmethod
-    def get_project_info(self, project_id: str) -> ToolResponse:
-        pass

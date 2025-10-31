@@ -1,33 +1,12 @@
-# file: src/MuzaiCore/interfaces/IRouter.py
 from abc import ABC, abstractmethod
 from typing import List
-
-# +++ ADD THIS IMPORT +++
 from .inode import INode
-
-from ...models import Port, Connection
-
-# file: src/MuzaiCore/interfaces/system/irouter.py
-from abc import ABC, abstractmethod
-from typing import List
-
-from .inode import INode
-from .isync import IGraphSync  # <-- Import the new listener interface
+from .ilifecycle import ILifecycleAware
+from .ievent_bus import IEventBus
 from ...models import Port, Connection
 
 
-class IRouter(ABC):
-    # --- NEW: Subscription Methods ---
-    @abstractmethod
-    def subscribe(self, listener: IGraphSync):
-        """Registers a listener for graph change events."""
-        pass
-
-    @abstractmethod
-    def unsubscribe(self, listener: IGraphSync):
-        """Unregisters a listener."""
-        pass
-
+class IRouter(ILifecycleAware, ABC):
     # --- Existing Methods ---
     @abstractmethod
     def add_node(self, node: INode):
@@ -56,3 +35,9 @@ class IRouter(ABC):
     @abstractmethod
     def get_all_connections(self) -> List[Connection]:
         pass
+
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None

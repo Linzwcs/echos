@@ -1,6 +1,7 @@
 # file: src/MuzaiCore/models/clip_model.py
 from dataclasses import dataclass, field
 from typing import Set, Union
+import uuid
 
 
 @dataclass(frozen=True)
@@ -14,10 +15,11 @@ class Note:
 @dataclass
 class Clip:
     """Base class for all clip types."""
-    clip_id: str
     start_beat: float
     duration_beats: float
-    name: str = ""
+    clip_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    name: str = "clip"
     is_looped: bool = False
     loop_start_beat: float = 0.0  # Relative to clip start
     loop_duration_beats: float = 0.0  # If 0, loops the whole clip

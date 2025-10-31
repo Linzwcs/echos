@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 import uuid
 import numpy as np
 
-from ..interfaces.system import IPlugin, IParameter, IEventBus  # <-- 新增导入
-from ..models import PluginDescriptor, TransportContext, NotePlaybackInfo, Port
-from ..models.event_model import PluginEnabledChanged  # <-- 新增导入
+from ..interfaces.system import IPlugin, IParameter, IEventBus
+from ..models import PluginDescriptor, Port
+from ..models.event_model import PluginEnabledChanged
 from .parameter import Parameter
 
 
@@ -19,12 +19,11 @@ class Plugin(IPlugin):
             descriptor: PluginDescriptor,
             event_bus: IEventBus,  # <-- 新增
             node_id: Optional[str] = None):
+        super().__init__()
         self._node_id = node_id or f"plugin_{uuid.uuid4()}"
         self.descriptor = descriptor
         self._event_bus = event_bus  # <-- 新增
         self._is_enabled = True
-
-        # Instantiate parameters from the descriptor's defaults
         self._parameters: Dict[str, IParameter] = {
             name:
             Parameter(owner_node_id=self._node_id,
@@ -39,10 +38,12 @@ class Plugin(IPlugin):
         return self._node_id
 
     @property
+    def node_type(self) -> str:
+        return "Plugin"
+
+    @property
     def is_enabled(self) -> bool:
         return self._is_enabled
-
-    # subscribe 方法被移除
 
     def set_enabled(self, enabled: bool):
         if self._is_enabled != enabled:
@@ -63,10 +64,5 @@ class Plugin(IPlugin):
             return self.descriptor.latency_samples
         return 0
 
-    def process_block(self, input_buffer: np.ndarray,
-                      notes: List[NotePlaybackInfo],
-                      context: TransportContext) -> np.ndarray:
-        """
-        Pass-through implementation for the domain model.
-        """
-        return input_buffer
+    def _get_mountable_children(self):
+        return list(self._parameters.values())

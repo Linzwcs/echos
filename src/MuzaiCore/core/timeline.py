@@ -5,36 +5,22 @@ import bisect
 from ..models.timeline_model import TempoEvent, TimeSignatureEvent
 from ..models.event_model import TempoChanged, TimeSignatureChanged  # <-- 新增导入
 from ..interfaces.system import ITimeline, IEventBus  # <-- 新增导入
-
-
-# (TempoMap class remains unchanged)
-class TempoMap:
-
-    def __init__(self, initial_tempo: float = 120.0):
-        self._tempo = initial_tempo
-
-    def set_constant_tempo(self, bpm: float):
-        if bpm <= 0: raise ValueError("BPM must be positive.")
-        self._tempo = bpm
-
-    def beats_to_seconds(self, beats: float) -> float:
-        return (beats * 60.0) / self._tempo
-
-    def seconds_to_beats(self, seconds: float) -> float:
-        return (seconds * self._tempo) / 60.0
+from ..interfaces.system.ilifecycle import ILifecycleAware
+from typing import List, Tuple
+import bisect
+from ..models.timeline_model import TempoEvent, TimeSignatureEvent
 
 
 class Timeline(ITimeline):
     """
-    Timeline 的具体实现，负责处理节拍和秒之间的转换，并支持时间线上的速度和拍号变化。
+    优化后的时间线
+    管理速度和拍号变化
     """
 
-    def __init__(
-        self,
-        event_bus: IEventBus,  # <-- 新增
-        tempo: float = 120.0,
-        time_signature: Tuple[int, int] = (4, 4)):
-        self._event_bus = event_bus  # <-- 新增
+    def __init__(self,
+                 tempo: float = 120.0,
+                 time_signature: Tuple[int, int] = (4, 4)):
+        super().__init__()
         self._tempo_events: List[TempoEvent] = [
             TempoEvent(beat=0.0, bpm=tempo)
         ]
@@ -44,138 +30,161 @@ class Timeline(ITimeline):
                                denominator=time_signature[1])
         ]
 
+    def _get_children(self) -> List[ILifecycleAware]:
+        return []
+
     @property
     def tempo(self) -> float:
+        """获取初始速度"""
         return self._tempo_events[0].bpm
 
     def set_tempo(self, bpm: float):
+        """设置初始速度"""
         self.set_tempo_at_beat(0.0, bpm)
 
     @property
     def time_signature(self) -> Tuple[int, int]:
+        """获取初始拍号"""
         ts = self._time_signature_events[0]
         return (ts.numerator, ts.denominator)
 
     def set_time_signature(self, numerator: int, denominator: int):
+        """设置初始拍号"""
         self.set_time_signature_at_beat(0.0, numerator, denominator)
 
-    def _add_or_update_event(self, event_list: List[NamedTuple],
-                             new_event: NamedTuple):
-        idx = bisect.bisect_left(event_list, new_event)
-        if idx < len(event_list) and event_list[idx].beat == new_event.beat:
-            event_list[idx] = new_event
+    def set_tempo_at_beat(self, beat: float, bpm: float):
+        """在指定节拍设置速度"""
+        if beat < 0:
+            return
+
+        new_event = TempoEvent(beat=beat, bpm=bpm)
+        idx = bisect.bisect_left(self._tempo_events, new_event)
+
+        if idx < len(
+                self._tempo_events) and self._tempo_events[idx].beat == beat:
+            self._tempo_events[idx] = new_event
         else:
-            event_list.insert(idx, new_event)
+            self._tempo_events.insert(idx, new_event)
+
+        if self.is_mounted:
+            from ..models.event_model import TempoChanged
+            self._event_bus.publish(TempoChanged(beat=beat, new_bpm=bpm))
+
+    def set_time_signature_at_beat(self, beat: float, numerator: int,
+                                   denominator: int):
+        """在指定节拍设置拍号"""
+        if beat < 0:
+            return
+
+        new_event = TimeSignatureEvent(beat=beat,
+                                       numerator=numerator,
+                                       denominator=denominator)
+        idx = bisect.bisect_left(self._time_signature_events, new_event)
+
+        if idx < len(self._time_signature_events
+                     ) and self._time_signature_events[idx].beat == beat:
+            self._time_signature_events[idx] = new_event
+        else:
+            self._time_signature_events.insert(idx, new_event)
+
+        if self.is_mounted:
+            from ..models.event_model import TimeSignatureChanged
+            self._event_bus.publish(
+                TimeSignatureChanged(beat=beat,
+                                     numerator=numerator,
+                                     denominator=denominator))
 
     def get_tempo_events(self) -> List[TempoEvent]:
+        """获取所有速度事件"""
         return list(self._tempo_events)
 
     def get_time_signature_events(self) -> List[TimeSignatureEvent]:
+        """获取所有拍号事件"""
         return list(self._time_signature_events)
 
-    def _get_active_tempo_at_beat(self, beat: float) -> float:
-        idx = bisect.bisect_right(self._tempo_events,
-                                  TempoEvent(beat=beat, bpm=0.0))
-        return self._tempo_events[idx - 1].bpm
-
-    def _get_active_time_signature_at_beat(self,
-                                           beat: float) -> TimeSignatureEvent:
-        idx = bisect.bisect_right(
-            self._time_signature_events,
-            TimeSignatureEvent(beat=beat, numerator=0, denominator=0))
-        return self._time_signature_events[idx - 1]
-
     def beats_to_seconds(self, target_beats: float) -> float:
-        if target_beats < 0: return 0.0
+        """将节拍转换为秒"""
+        if target_beats < 0:
+            return 0.0
+
         total_seconds = 0.0
         current_beat = 0.0
-        relevant_tempo_events = [
+
+        relevant_events = [
             e for e in self._tempo_events if e.beat <= target_beats
         ]
-        if not relevant_tempo_events or target_beats > relevant_tempo_events[
-                -1].beat:
-            relevant_tempo_events.append(
+        if not relevant_events or target_beats > relevant_events[-1].beat:
+            relevant_events.append(
                 TempoEvent(beat=target_beats,
-                           bpm=self._get_active_tempo_at_beat(target_beats)))
+                           bpm=self._get_tempo_at_beat(target_beats)))
 
-        for i in range(len(relevant_tempo_events) - 1):
-            start_event = relevant_tempo_events[i]
-            end_event = relevant_tempo_events[i + 1]
-            segment_end_beat = min(end_event.beat, target_beats)
-            if segment_end_beat > current_beat:
-                beats_in_segment = segment_end_beat - current_beat
-                tempo_for_segment = start_event.bpm
-                total_seconds += (beats_in_segment / tempo_for_segment) * 60.0
-            current_beat = segment_end_beat
-            if current_beat >= target_beats: break
+        for i in range(len(relevant_events) - 1):
+            start_event = relevant_events[i]
+            end_event = relevant_events[i + 1]
+            segment_end = min(end_event.beat, target_beats)
 
-        if current_beat < target_beats:
-            last_tempo = self._get_active_tempo_at_beat(target_beats)
-            beats_in_last_segment = target_beats - current_beat
-            total_seconds += (beats_in_last_segment / last_tempo) * 60.0
+            if segment_end > current_beat:
+                beats_in_segment = segment_end - current_beat
+                total_seconds += (beats_in_segment / start_event.bpm) * 60.0
+
+            current_beat = segment_end
+            if current_beat >= target_beats:
+                break
+
         return total_seconds
 
     def seconds_to_beats(self, target_seconds: float) -> float:
-        if target_seconds < 0: return 0.0
+        """将秒转换为节拍"""
+        if target_seconds < 0:
+            return 0.0
+
         total_beats = 0.0
         current_seconds = 0.0
-        current_beat_pos = 0.0
-        tempo_events_with_end = self._tempo_events + [
+        current_beat = 0.0
+
+        events_with_end = self._tempo_events + [
             TempoEvent(beat=float('inf'), bpm=self._tempo_events[-1].bpm)
         ]
 
-        for i in range(len(tempo_events_with_end) - 1):
-            start_event = tempo_events_with_end[i]
-            end_event = tempo_events_with_end[i + 1]
-            tempo_for_segment = start_event.bpm
-            segment_total_beats = end_event.beat - current_beat_pos
-            if tempo_for_segment <= 0: continue
-            segment_total_seconds = (segment_total_beats /
-                                     tempo_for_segment) * 60.0
+        for i in range(len(events_with_end) - 1):
+            start_event = events_with_end[i]
+            end_event = events_with_end[i + 1]
+            tempo = start_event.bpm
 
-            if current_seconds + segment_total_seconds >= target_seconds:
+            if tempo <= 0:
+                continue
+
+            segment_beats = end_event.beat - current_beat
+            segment_seconds = (segment_beats / tempo) * 60.0
+
+            if current_seconds + segment_seconds >= target_seconds:
                 remaining_seconds = target_seconds - current_seconds
-                beats_in_remaining_seconds = (remaining_seconds *
-                                              tempo_for_segment) / 60.0
-                total_beats += beats_in_remaining_seconds
+                beats_in_remaining = (remaining_seconds * tempo) / 60.0
+                total_beats += beats_in_remaining
                 return total_beats
             else:
-                total_beats += segment_total_beats
-                current_seconds += segment_total_seconds
-                current_beat_pos = end_event.beat
+                total_beats += segment_beats
+                current_seconds += segment_seconds
+                current_beat = end_event.beat
+
         return total_beats
 
     def samples_to_beats(self, samples: int, sample_rate: int) -> float:
-        if sample_rate <= 0: raise ValueError("Sample rate must be positive.")
+        """将样本数转换为节拍"""
+        if sample_rate <= 0:
+            raise ValueError("Sample rate must be positive")
         seconds = samples / sample_rate
         return self.seconds_to_beats(seconds)
 
     def beats_to_samples(self, beats: float, sample_rate: int) -> int:
-        if sample_rate <= 0: raise ValueError("Sample rate must be positive.")
+        """将节拍转换为样本数"""
+        if sample_rate <= 0:
+            raise ValueError("Sample rate must be positive")
         seconds = self.beats_to_seconds(beats)
-        samples = seconds * sample_rate
-        return round(samples)
+        return round(seconds * sample_rate)
 
-    # subscribe 方法被移除
-
-    def set_tempo_at_beat(self, beat: float, bpm: float):
-        if beat < 0: return
-        new_tempo_event = TempoEvent(beat=beat, bpm=bpm)
-        self._add_or_update_event(self._tempo_events, new_tempo_event)
-
-        # 发布事件
-        self._event_bus.publish(TempoChanged(beat=beat, new_bpm=bpm))
-
-    def set_time_signature_at_beat(self, beat: float, numerator: int,
-                                   denominator: int):
-        if beat < 0: return
-        new_ts_event = TimeSignatureEvent(beat=beat,
-                                          numerator=numerator,
-                                          denominator=denominator)
-        self._add_or_update_event(self._time_signature_events, new_ts_event)
-
-        # 发布事件
-        self._event_bus.publish(
-            TimeSignatureChanged(beat=beat,
-                                 numerator=numerator,
-                                 denominator=denominator))
+    def _get_tempo_at_beat(self, beat: float) -> float:
+        """获取指定节拍的速度"""
+        idx = bisect.bisect_right(self._tempo_events,
+                                  TempoEvent(beat=beat, bpm=0.0))
+        return self._tempo_events[idx - 1].bpm
