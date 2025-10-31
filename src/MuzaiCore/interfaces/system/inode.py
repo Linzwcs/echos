@@ -1,80 +1,127 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
-import numpy as np
-from .iaudio_processor import IAudioProcessor
-from .imixer_channel import IMixerChannel
-from ...models import Port
+from typing import Any, Dict, List, Optional
+from .ilifecycle import ILifecycleAware
+from .ievent_bus import IEventBus
+from ...models import AnyClip, Port
 
 
-class INode(IAudioProcessor, ABC):
+class INode(ILifecycleAware, ABC):
+    """
+    纯前端节点接口
+    
+    职责：
+    - 元数据（ID, name, type）
+    - 端口定义（仅描述）
+    - 参数定义（仅数据）
+    
+    不负责：
+    ❌ 音频处理
+    ❌ MIDI处理
+    ❌ DSP计算
+    """
 
     @property
     @abstractmethod
     def node_id(self) -> str:
+        """节点唯一标识"""
+        pass
+
+    @property
+    @abstractmethod
+    def node_type(self) -> str:
+        """节点类型：'track', 'plugin', 'bus', 'vca'"""
         pass
 
     @abstractmethod
-    def get_ports(self, port_type: Optional[str] = None) -> List[Port]:
+    def get_parameters(self) -> Dict[str, Any]:
+        """
+        获取参数定义
+        
+        Returns:
+            {param_name: param_descriptor}
+        """
         pass
 
-
-class IPlugin(INode, ABC):
-    # IPlugin inherits node_id and process_block from INode
     @abstractmethod
-    def get_latency_samples(self) -> int:
-        """Returns the processing latency introduced by the plugin in samples."""
+    def to_dict(self) -> dict:
+        """
+        序列化为字典
+        
+        前端对象必须可序列化
+        """
         pass
 
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
 
-class ITrack(INode, ABC):
+    def _on_unmount(self):
+        self._event_bus = None
+
+
+class ITrack(INode):
     """
-    Represents a track on the timeline, which holds clips.
-    It delegates all its signal processing to an associated MixerChannel.
+    纯前端轨道接口
+    
+    改变：
+    - ❌ 删除 mixer_channel 属性（音频相关）
+    - ✓ 保留 clips（纯数据）
+    - ✓ 保留元数据
     """
 
     @property
     @abstractmethod
     def name(self) -> str:
+        """轨道名称"""
+        pass
+
+    @name.setter
+    @abstractmethod
+    def name(self, value: str):
+        """设置轨道名称"""
         pass
 
     @property
     @abstractmethod
-    def mixer_channel(self) -> "IMixerChannel":  # <-- The key change
-        """The associated mixer channel strip for this track."""
+    def clips(self) -> List[AnyClip]:
+        """此轨道的所有片段（纯数据）"""
         pass
 
-    # Track-specific properties can be added here
-    @property
-    @abstractmethod
-    def is_armed(self) -> bool:
-        """Is the track armed for recording?"""
-        pass
 
-    # +++ NEW PROPERTIES for professional workflow +++
-    @property
-    @abstractmethod
-    def record_mode(self) -> "TrackRecordMode":
-        pass
+class IPlugin(INode):
+    """
+    纯前端插件接口
+    
+    改变：
+    - ❌ 删除所有音频处理方法
+    - ✓ 只保留描述符和状态
+    """
 
     @property
     @abstractmethod
-    def input_source_id(self) -> str:
-        """ID of the hardware input channel this track is listening to."""
+    def descriptor(self) -> 'PluginDescriptor':
+        """插件静态描述符"""
         pass
 
     @property
     @abstractmethod
-    def is_frozen(self) -> bool:
+    def is_enabled(self) -> bool:
+        """是否启用（前端状态）"""
         pass
 
     @abstractmethod
-    def set_armed(self, armed: bool):
-        pass
-
-    @abstractmethod
-    def set_frozen(self, frozen: bool, flatten: bool = False):
+    def get_parameter_values(self) -> Dict[str, Any]:
         """
-        Sets the frozen state. If flatten is True, the action is destructive
-        and cannot be undone.
+        获取所有参数的当前值
+        
+        注意：这是前端存储的值，非实时音频线程的值
+        """
+        pass
+
+    @abstractmethod
+    def set_parameter_value(self, name: str, value: Any):
+        """
+        设置参数值（前端）
+        
+        这只更新前端状态，实际音频变化由SyncController处理
         """
         pass

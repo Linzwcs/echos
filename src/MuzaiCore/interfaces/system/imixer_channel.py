@@ -1,104 +1,102 @@
 # file: src/MuzaiCore/interfaces/IMixerChannel.py
 from abc import ABC, abstractmethod
-from typing import List, Dict
-
-from typing import Optional
+from typing import List, Dict, Optional, Any
 from .iparameter import IParameter
-from .iaudio_processor import IAudioProcessor
+from .inode import IPlugin
+from ...models.mixer_model import Send
+from .ilifecycle import ILifecycleAware
+from .ievent_bus import IEventBus
 
-from .isync import IMixerSync
 
-
-class IMixerChannel(IAudioProcessor, ABC):
+class IMixerChannel(ILifecycleAware, ABC):
     """
-    Represents a channel strip in a virtual mixer.
-    It handles all signal processing for a track: inserts, sends, fader.
+    表示混音器通道条的状态容器。
+
+    职责:
+    - 持有混音参数 (音量, 声像)。
+    - 管理插件插入链 (Inserts)。
+    - 管理效果发送 (Sends)。
+    - 提供修改这些状态的方法。
+    - (实现类) 在状态变更时，通过EventBus发布领域事件。
     """
 
     @property
     @abstractmethod
+    def channel_id(self) -> str:
+        """通道的唯一ID，通常与其所属的Node ID相同。"""
+        pass
+
+    @property
+    @abstractmethod
     def volume(self) -> IParameter:
+        """音量参数。"""
         pass
 
     @property
     @abstractmethod
     def pan(self) -> IParameter:
+        """声像参数。"""
         pass
 
     @property
     @abstractmethod
-    def inserts(self) -> List["IPlugin"]:
-        """The list of insert plugins on this channel."""
+    def inserts(self) -> List[IPlugin]:
+        """获取此通道上所有插入效果插件的有序列表。"""
         pass
 
     @property
     @abstractmethod
-    def sends(self) -> List['Send']:
-        """The list of sends on this channel."""
+    def sends(self) -> List[Send]:
+        """获取此通道上所有效果发送的列表。"""
         pass
 
     @abstractmethod
     def get_parameters(self) -> Dict[str, IParameter]:
-        """Gets all parameters for this channel, including plugins."""
-        pass
-
-    # +++ NEW PROPERTIES for grouping +++
-    @property
-    @abstractmethod
-    def group_id(self) -> Optional[str]:
-        """The ID of the group this channel belongs to."""
-        pass
-
-    @property
-    @abstractmethod
-    def vca_controller_id(self) -> Optional[str]:
-        """The ID of the VCATrack controlling this channel."""
+        """获取此通道的所有参数，包括插件的参数。"""
         pass
 
     @abstractmethod
-    def add_insert(self, plugin: "IPlugin") -> None:
-        """Adds a plugin to the insert chain."""
-        pass
-
-    @abstractmethod
-    def remove_insert(self, plugin_id: str) -> None:
-        """Removes a plugin from the insert chain by its ID."""
-        pass
-
-    @abstractmethod
-    def get_parameters(self) -> Dict[str, IParameter]:
-        pass
-
-    @abstractmethod
-    def add_insert(self, plugin: "IPlugin", index: Optional[int] = None):
+    def add_insert(self, plugin: IPlugin, index: Optional[int] = None):
+        """在指定位置添加一个插件到插入链。"""
         pass
 
     @abstractmethod
     def remove_insert(self, plugin_instance_id: str) -> bool:
+        """根据实例ID从插入链中移除一个插件。"""
         pass
 
     @abstractmethod
     def move_insert(self, plugin_instance_id: str, new_index: int) -> bool:
+        """在插入链中移动一个插件到新的位置。"""
         pass
 
     @abstractmethod
     def add_send(self,
                  target_bus_node_id: str,
-                 is_post_fader: bool = True) -> "Send":
+                 is_post_fader: bool = True) -> Send:
+        """创建一个到目标总线的效果发送。"""
         pass
 
     @abstractmethod
     def remove_send(self, send_id: str) -> bool:
+        """根据ID移除一个效果发送。"""
         pass
 
     @abstractmethod
-    def set_group(self, group_id: Optional[str]):
+    def to_dict(self) -> Dict[str, Any]:
+        """将通道状态序列化为字典。"""
         pass
 
-    @abstractmethod
-    def set_vca_controller(self, vca_id: Optional[str]):
-        pass
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
 
-    @abstractmethod
-    def subscribe(self, listener: IMixerSync):
-        pass
+    def _on_unmount(self):
+        self._event_bus = None
+
+    def _get_children(self) -> List[ILifecycleAware]:
+        """返回所有子组件"""
+        children = [self._volume, self._pan, self._input_gain]
+        children.extend(self._inserts)
+        for send in self._sends:
+            children.append(send.level)
+        return children

@@ -1,10 +1,35 @@
-# file: src/MuzaiCore/interfaces/INodeFactory.py
-"""
-定义了用于创建所有节点类型（轨道和插件）的抽象工厂接口。
-"""
+from typing import Optional
 from abc import ABC, abstractmethod
+from .iproject import IProject
 from .inode import IPlugin, ITrack
+from .iengine import IEngine
 from ...models import PluginDescriptor
+
+
+class IEngineFactory(ABC):
+    """
+    AudioEngine工厂的抽象接口
+    
+    每个后端（DawDreamer, Real, Mock）实现自己的工厂
+    """
+
+    @abstractmethod
+    def create_engine(
+        self,
+        sample_rate: int,
+        block_size: int,
+    ) -> IEngine:
+        """
+        创建后端特定的AudioEngine实例
+        
+        Args:
+            sample_rate: 采样率
+            block_size: 缓冲区大小
+            
+        Returns:
+            完全初始化的IAudioEngine实例
+        """
+        pass
 
 
 class INodeFactory(ABC):

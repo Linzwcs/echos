@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import List, Optional
 
 
 class IEventBus(ABC):
@@ -8,5 +9,15 @@ class IEventBus(ABC):
     def subscribe(self, event_type, handler):
         ...
 
+    @abstractmethod
+    def unsubscribe(self, event_type, handler):
+        ...
+
+    @abstractmethod
     def publish(self, event):
         ...
+
+    @abstractmethod
+    def clear(self):
+        """Clears all subscriptions."""
+        pass

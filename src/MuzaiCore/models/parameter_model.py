@@ -1,6 +1,16 @@
 # file: src/MuzaiCore/models/parameter_model.py
 from dataclasses import dataclass, field
 from typing import Union, List, Tuple
+from enum import Enum
+
+
+class ParameterType(Enum):
+    """参数类型枚举"""
+    FLOAT = "float"
+    INT = "int"
+    BOOL = "bool"
+    ENUM = "enum"
+    STRING = "string"
 
 
 class AutomationCurveType:

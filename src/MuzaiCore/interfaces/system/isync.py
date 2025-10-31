@@ -1,7 +1,9 @@
 # file: src/MuzaiCore/interfaces/system/igraph_sync.py
 from abc import ABC, abstractmethod
 from typing import Any, Optional, List
-from ...interfaces.system.ievent_bus import IEventBus
+
+from MuzaiCore.interfaces.system.ievent_bus import IEventBus
+from .ilifecycle import ILifecycleAware
 from ...models import Connection, Note, AnyClip
 from ...models import event_model
 
@@ -126,6 +128,7 @@ class ISyncController(
         ITransportSync,
         IClipSync,
         IProjectSync,
+        ILifecycleAware,
         ABC,
 ):
     """
@@ -135,13 +138,5 @@ class ISyncController(
     """
     pass
 
-    @abstractmethod
-    def register_event_handlers(self, event_bus: IEventBus):
-        """
-        Subscribes the controller's methods to the domain event bus.
-        This method is called once upon initialization to wire up the system.
-        
-        This abstract method FORCES every implementation to explicitly define
-        how it reacts to domain events.
-        """
-        pass
+    def _get_children(self):
+        return []

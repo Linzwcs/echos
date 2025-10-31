@@ -2,10 +2,13 @@
 # 请根据你的实际文件结构调整 ITimeline 的位置和导入
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-from MuzaiCore.models.timeline_model import TempoEvent, TimeSignatureEvent
+
+from MuzaiCore.interfaces.system.ievent_bus import IEventBus
+from .ilifecycle import ILifecycleAware
+from ...models.timeline_model import TempoEvent, TimeSignatureEvent
 
 
-class ITimeline(ABC):
+class ITimeline(ILifecycleAware, ABC):
 
     @abstractmethod
     def beats_to_seconds(self, beats: float) -> float:
@@ -59,3 +62,9 @@ class ITimeline(ABC):
     def beats_to_samples(self, beats: float, sample_rate: int) -> int:
         """将节拍数转换为最接近的样本位置。"""
         pass
+
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None

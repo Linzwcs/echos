@@ -38,8 +38,8 @@ from .project_model import ProjectState
 
 # from timelime_model (Note: filename has a typo, should likely be "timeline")
 from .timeline_model import TempoEvent, TimeSignatureEvent
-
 from .routing_model import Connection, Port, PortType, PortDirection
+from .mixer_model import Send
 
 __all__ = [
     "ToolResponse",
@@ -80,4 +80,5 @@ __all__ = [
     "PortType",
     "PortDirection",
     # mixer,
+    "Send",
 ]

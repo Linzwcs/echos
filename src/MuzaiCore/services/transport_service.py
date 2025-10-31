@@ -1,136 +1,89 @@
-# file: src/MuzaiCore/implementations/services/transport_service.py
-from ..interfaces.services import ITransportService
+# file: src/MuzaiCore/services/transport_service.py
+from ..interfaces import IDAWManager, ITransportService
 from ..models import ToolResponse, TransportStatus
-from ..interfaces import IDAWManager
-
-from ..core.history.commands.transport_commands import SetTempoCommand, SetTimeSignatureCommand
+from ..core.history.commands.transport_command import SetTempoCommand, SetTimeSignatureCommand
 
 
 class TransportService(ITransportService):
-    """
-    走带控制服务
-    
-    操作分类：
-    - 修改项目状态（tempo, time_signature）→ Command
-    - 瞬态控制（play, stop, pause）→ 直接调用
-    - 查询（get_transport_state）→ 直接访问
-    """
+    """走带控制服务的具体实现。"""
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager
 
     def play(self, project_id: str) -> ToolResponse:
-        """
-        开始播放（瞬态操作，不需要Command）
-        
-        原因：
-        - 不修改项目状态（只是运行引擎）
-        - 不需要撤销（可以直接stop）
-        - 实时性要求高
-        """
+        """播放是瞬时引擎操作，不进入撤销栈。"""
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
-                                f"Project {project_id} not found")
+                                f"Project '{project_id}' not found.")
 
-        if hasattr(project, 'engine') and project.engine:
-            project.engine.play()
+        if project._audio_engine:
+            project._audio_engine.play()
+            # 注意：在真实应用中，状态应由引擎事件驱动更新
+            project._transport_status = TransportStatus.PLAYING
             return ToolResponse("success", {"status": "playing"},
-                                "Playback started")
-        else:
-            return ToolResponse("error", None, "No audio engine available")
+                                "Playback started.")
+        return ToolResponse("error", None, "No audio engine attached.")
 
     def stop(self, project_id: str) -> ToolResponse:
-        """停止播放（瞬态操作，不需要Command）"""
+        """停止也是瞬时引擎操作。"""
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
-                                f"Project {project_id} not found")
+                                f"Project '{project_id}' not found.")
 
-        if hasattr(project, 'engine') and project.engine:
-            project.engine.stop()
+        if project._audio_engine:
+            project._audio_engine.stop()
+            project._transport_status = TransportStatus.STOPPED
             return ToolResponse("success", {"status": "stopped"},
-                                "Playback stopped")
-        else:
-            return ToolResponse("error", None, "No audio engine available")
-
-    def pause(self, project_id: str) -> ToolResponse:
-        """暂停播放（瞬态操作，不需要Command）"""
-        project = self._manager.get_project(project_id)
-        if not project:
-            return ToolResponse("error", None,
-                                f"Project {project_id} not found")
-
-        project.set_transport_status(TransportStatus.PAUSED)
-        return ToolResponse("success", {"status": "paused"}, "Playback paused")
+                                "Playback stopped.")
+        return ToolResponse("error", None, "No audio engine attached.")
 
     def set_tempo(self, project_id: str, bpm: float) -> ToolResponse:
-        """
-        设置速度（使用Command - 可撤销）
-        
-        这是项目状态的修改，需要Command：
-        - 修改project.tempo
-        - 需要撤销
-        - 支持Command合并（连续调整速度）
-        """
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
-                                f"Project {project_id} not found")
+                                f"Project '{project_id}' not found.")
 
-        if bpm <= 0 or bpm > 999:
-            return ToolResponse("error", None,
-                                "Tempo must be between 1 and 999 BPM")
-
-        # 创建并执行Command
-        command = SetTempoCommand(project, bpm)
+        command = SetTempoCommand(project.timeline, bpm)
         project.command_manager.execute_command(command)
 
-        return ToolResponse("success", {"tempo": bpm},
-                            f"Tempo set to {bpm} BPM (undoable)")
+        if command.is_executed:
+            return ToolResponse("success", {"tempo": bpm}, command.description)
+        return ToolResponse("error", None, command.error)
 
     def set_time_signature(self, project_id: str, numerator: int,
                            denominator: int) -> ToolResponse:
-        """
-        设置拍号（使用Command - 可撤销）
-        
-        这是项目状态的修改，需要Command
-        """
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
-                                f"Project {project_id} not found")
+                                f"Project '{project_id}' not found.")
 
-        if numerator <= 0 or denominator <= 0:
-            return ToolResponse("error", None, "Invalid time signature")
-
-        if denominator not in [2, 4, 8, 16]:
-            return ToolResponse("error", None,
-                                "Denominator must be 2, 4, 8, or 16")
-
-        # 创建并执行Command
-        command = SetTimeSignatureCommand(project, numerator, denominator)
+        command = SetTimeSignatureCommand(project.timeline, numerator,
+                                          denominator)
         project.command_manager.execute_command(command)
 
-        return ToolResponse(
-            "success", {
+        if command.is_executed:
+            return ToolResponse("success", {
                 "numerator": numerator,
                 "denominator": denominator
-            }, f"Time signature set to {numerator}/{denominator} (undoable)")
+            }, command.description)
+        return ToolResponse("error", None, command.error)
 
     def get_transport_state(self, project_id: str) -> ToolResponse:
-        """获取走带状态（查询操作）"""
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
-                                f"Project {project_id} not found")
+                                f"Project '{project_id}' not found.")
 
-        return ToolResponse(
-            "success", {
-                "status": project.transport_status.value,
-                "tempo": project.tempo,
-                "time_signature": {
-                    "numerator": project.time_signature[0],
-                    "denominator": project.time_signature[1]
-                }
-            }, "Transport state retrieved")
+        state = {
+            "status": project.transport_status.value,
+            "tempo": project.tempo,
+            "time_signature": project.time_signature,
+            "current_beat": project.current_beat
+        }
+        return ToolResponse("success", state, "Transport state retrieved.")
+
+    def pause(self, project_id: str) -> ToolResponse:
+        return ToolResponse("error", None,
+                            "Pause is not implemented in mock engine.")

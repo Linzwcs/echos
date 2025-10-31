@@ -11,9 +11,9 @@ from typing import Any, List, Optional
 
 from .clip_model import Note, AnyClip
 from .routing_model import Connection
+from .mixer_model import Send
 
 
-# ----------------- The Base Event -----------------
 @dataclass
 class BaseEvent:
     """The base class for all domain events."""
@@ -49,6 +49,13 @@ class NodeAdded(BaseEvent):
 class NodeRemoved(BaseEvent):
     """Fired when a node is removed from the project."""
     node_id: str
+
+
+@dataclass
+class NodeRenamed:
+    node_id: str
+    old_name: str
+    new_name: str
 
 
 @dataclass
@@ -169,3 +176,18 @@ class NoteRemoved(BaseEvent):
     """Fired when one or more notes are removed from a clip."""
     owner_clip_id: str
     notes: List[Note]
+
+
+@dataclass
+class SendAdded(BaseEvent):
+    """Fired when a send is added to a mixer channel."""
+    owner_node_id: str
+    send: Send
+
+
+@dataclass
+class SendRemoved(BaseEvent):
+    """Fired when a send is removed from a mixer channel."""
+    owner_node_id: str
+    send_id: str
+    target_bus_node_id: str  # Important for the sync controller to know which connection to break
