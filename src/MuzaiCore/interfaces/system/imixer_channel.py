@@ -92,11 +92,3 @@ class IMixerChannel(ILifecycleAware, ABC):
 
     def _on_unmount(self):
         self._event_bus = None
-
-    def _get_children(self) -> List[ILifecycleAware]:
-        """返回所有子组件"""
-        children = [self._volume, self._pan, self._input_gain]
-        children.extend(self._inserts)
-        for send in self._sends:
-            children.append(send.level)
-        return children
