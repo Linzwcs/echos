@@ -1,0 +1,100 @@
+from abc import ABC, abstractmethod
+from typing import List
+from .ievent_bus import IEventBus
+from .ilifecycle import ILifecycleAware
+from ...models.timeline_model import Tempo, TimeSignature, TimelineState
+
+
+class IReadonlyTimeline(ABC):
+
+    @property
+    @abstractmethod
+    def tempos(self) -> List[Tempo]:
+        pass
+
+    @property
+    @abstractmethod
+    def time_signatures(self) -> List[TimeSignature]:
+        pass
+
+    @abstractmethod
+    def get_tempo_at_beat(self, beat: float) -> float:
+        pass
+
+    @abstractmethod
+    def get_time_signature_at_beat(self, beat: float) -> TimeSignature:
+        pass
+
+
+class IWritableTimeline(ABC):
+
+    @abstractmethod
+    def set_state(self, new_state: TimelineState) -> TimelineState:
+        pass
+
+
+class IMusicalTimeConverter(ABC):
+
+    @abstractmethod
+    def beats_to_seconds(self, beats: float) -> float:
+        pass
+
+    @abstractmethod
+    def seconds_to_beats(self, seconds: float) -> float:
+        pass
+
+
+class IDomainTimeline(
+        ILifecycleAware,
+        IReadonlyTimeline,
+        IMusicalTimeConverter,
+        IWritableTimeline,
+        ABC,
+):
+
+    @property
+    @abstractmethod
+    def timeline_state(self) -> TimelineState:
+        pass
+
+    @abstractmethod
+    def add_tempo(self, beat: float, bpm: float):
+        pass
+
+    @abstractmethod
+    def add_time_signature(self, beat: float, bpm: float):
+        pass
+
+    @abstractmethod
+    def remove_tempo(
+        self,
+        beat: float,
+        numerator: int,
+        denominator: int,
+    ):
+        pass
+
+    @abstractmethod
+    def remove_time_signature(
+        self,
+        beat: float,
+        numerator: int,
+        denominator: int,
+    ):
+        pass
+
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None
+
+    def _get_children(self) -> List[ILifecycleAware]:
+        return []
+
+
+class IEngineTimeline(
+        IReadonlyTimeline,
+        IWritableTimeline,
+):
+    pass
