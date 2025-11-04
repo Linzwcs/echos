@@ -1,10 +1,8 @@
-# file: src/MuzaiCore/engine/mock_engine.py
 import numpy as np
-from ..interfaces.system.iengine import IEngine
-from ..interfaces.system.itimeline import ITimeline
 from .sync_controller import MockSyncController
-
-from ..models import TransportStatus
+from ...interfaces.system.iengine import IEngine
+from ...interfaces.system.itimeline import ITimeline
+from ...models import TransportStatus
 
 
 class Engine(IEngine):

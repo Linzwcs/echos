@@ -148,13 +148,6 @@ class Parameter(IParameter):
         return self._unit
 
     def set_value(self, new_value: Any, immediate: bool = False):
-        """
-        设置参数值
-        
-        Args:
-            new_value: 新值
-            immediate: 是否立即发布事件
-        """
         old_value = self._base_value
         clamped_value = self._clamp(new_value)
 
@@ -163,29 +156,24 @@ class Parameter(IParameter):
 
         self._base_value = clamped_value
 
-        # 执行回调
         for callback in self._change_callbacks:
             try:
                 callback(old_value, self._base_value)
             except Exception as e:
                 print(f"Parameter callback error: {e}")
 
-        # 发布事件
         if self.is_mounted:
             if immediate or self._immediate_mode:
-                # 立即发布
                 from ..models.event_model import ParameterChanged
                 self._event_bus.publish(
                     ParameterChanged(owner_node_id=self._owner_node_id,
                                      param_name=self._name,
                                      new_value=self._base_value))
             elif self._batch_updater:
-                # 批量更新
                 self._batch_updater.queue_change(self._owner_node_id,
                                                  self._name, self._base_value)
 
     def get_value_at(self, context: TransportContext) -> Any:
-        """计算在特定时间点的值（考虑自动化）"""
         if not self._automation_lane.is_enabled or not self._automation_lane.points:
             return self._base_value
 
@@ -196,7 +184,7 @@ class Parameter(IParameter):
                              value: Any,
                              curve_type: str = AutomationCurveType.LINEAR,
                              curve_shape: float = 0.0):
-        """添加自动化点"""
+
         point = AutomationPoint(beat=beat,
                                 value=self._clamp(value),
                                 curve_type=curve_type,
@@ -207,7 +195,7 @@ class Parameter(IParameter):
     def remove_automation_point_at(self,
                                    beat: float,
                                    tolerance: float = 0.01) -> bool:
-        """移除指定位置的自动化点"""
+
         for i, point in enumerate(self._automation_lane.points):
             if abs(point.beat - beat) <= tolerance:
                 self._automation_lane.points.pop(i)
@@ -215,31 +203,24 @@ class Parameter(IParameter):
         return False
 
     def clear_automation(self):
-        """清除所有自动化"""
         self._automation_lane.points.clear()
 
     def enable_automation(self, enabled: bool = True):
-        """启用/禁用自动化"""
         self._automation_lane.is_enabled = enabled
 
     def enable_immediate_mode(self):
-        """启用立即模式（用于Command执行）"""
         self._immediate_mode = True
 
     def disable_immediate_mode(self):
-        """禁用立即模式"""
         self._immediate_mode = False
 
     def add_change_callback(self, callback: Callable):
-        """添加值变化回调"""
         self._change_callbacks.append(callback)
 
     def reset_to_default(self):
-        """重置到默认值"""
         self.set_value(self._default_value, immediate=True)
 
     def _clamp(self, value: Any) -> Any:
-        """限制值在有效范围内"""
         if self._min_value is not None and value < self._min_value:
             return self._min_value
         if self._max_value is not None and value > self._max_value:
@@ -247,7 +228,6 @@ class Parameter(IParameter):
         return value
 
     def _interpolate_automation(self, beat: float) -> Any:
-        """插值自动化曲线"""
         points = sorted(self._automation_lane.points, key=lambda p: p.beat)
 
         if not points:
@@ -259,7 +239,6 @@ class Parameter(IParameter):
         if beat >= points[-1].beat:
             return points[-1].value
 
-        # 找到两个包围点
         for i in range(len(points) - 1):
             p1 = points[i]
             p2 = points[i + 1]
@@ -290,9 +269,6 @@ class Parameter(IParameter):
 
 
 class VCAParameter(Parameter):
-    """
-    VCA参数 - 特殊的参数类型
-    """
 
     def __init__(self,
                  owner_node_id: str,
@@ -310,10 +286,6 @@ class VCAParameter(Parameter):
 
 
 class ParameterGroup:
-    """
-    参数组，用于将相关参数组织在一起
-    例如：滤波器部分、ADSR包络、振荡器等
-    """
 
     def __init__(self, name: str):
         self.name = name
@@ -321,22 +293,18 @@ class ParameterGroup:
         self._subgroups: List['ParameterGroup'] = []
 
     def add_parameter(self, param: Parameter):
-        """添加参数到组"""
         self._parameters.append(param)
 
     def add_subgroup(self, group: 'ParameterGroup'):
-        """添加子组"""
         self._subgroups.append(group)
 
     def get_all_parameters(self) -> List[Parameter]:
-        """递归获取所有参数"""
         params = self._parameters.copy()
         for subgroup in self._subgroups:
             params.extend(subgroup.get_all_parameters())
         return params
 
     def find_parameter(self, name: str) -> Optional[Parameter]:
-        """按名称查找参数"""
         for param in self._parameters:
             if param.name == name:
                 return param

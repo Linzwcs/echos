@@ -1,11 +1,10 @@
 # file: src/MuzaiCore/interfaces/IDeviceManager.py
 from abc import ABC, abstractmethod
 from typing import List
-from ...models.device_model import AudioDevice, MIDIDevice  # <-- New model
+from ...models.device_model import AudioDevice, MIDIDevice
 
 
 class IDeviceManager(ABC):
-    """Manages discovery and state of audio and MIDI hardware devices."""
 
     @abstractmethod
     def scan_devices(self):

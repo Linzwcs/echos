@@ -1,8 +1,9 @@
-# file: src/MuzaiCore/services/api_types.py
-from typing import Any, NamedTuple, List, Dict, Tuple, Optional
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 
-class ToolResponse(NamedTuple):
+@dataclass(frozen=True)
+class ToolResponse:
     status: str
     data: Optional[Dict[str, Any]]
     message: str

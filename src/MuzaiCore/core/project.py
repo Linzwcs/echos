@@ -135,9 +135,7 @@ class Project(IProject):
 
         self._audio_engine = engine
         engine.mount(self._event_bus_instance)
-        engine.set_timeline(self._timeline)
 
-        # 触发全量同步
         from ..models.event_model import ProjectLoaded
         self._event_bus_instance.publish(ProjectLoaded(project=self))
 

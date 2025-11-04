@@ -7,12 +7,8 @@ from .routing_model import Connection
 
 @dataclass
 class ProjectState:
-    """The complete, serializable state of a project."""
 
     project_id: str
     name: str
     router: "Router"
     timeline: "Timeline"
-
-    # command_manager: "CommandManager"
-    # engine: "AudioEngine"
