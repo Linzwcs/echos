@@ -1,23 +1,15 @@
-# pyproject.toml (v3.1 - src layout)
-
-# ==============================================================================
-# Build System Configuration
-# ==============================================================================
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
-# ==============================================================================
-# Project Metadata (PEP 621)
-# ==============================================================================
 [project]
-name = "muzai-core"
-version = "0.3.1"
+name = "echos"
+version = "v0.0.1"
 authors = [
   { name="Zhilin Wang", email="zhilin.nlp@gmail.com" },
 ]
 description = "A modular, interface-driven AI agent for music co-production."
 readme = "Readme.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text="MIT" } # For simplicity, can also use { file="LICENSE" }
 keywords = ["ai", "music", "daw", "midi", "agent", "llm", "composition"]
 classifiers = [
@@ -31,7 +23,9 @@ classifiers = [
 ]
 
 # --- Core & Optional Dependencies ---
-dependencies = []
+dependencies = [
+    
+]
 
 [project.optional-dependencies]
 realtime = [
@@ -49,10 +43,9 @@ dev = [
 # --- Project URLs ---
 [project.urls]
 
-# Homepage = "https://github.com/your-username/muzai-core"
+# Homepage = "https://github.com/linzwcs/echos"
 
-# "Bug Tracker" = "https://github.com/your-username/muzai-core/issues"
-
+# "Bug Tracker" = "https://github.com/linzwcs/echos/issues"
 
 # ==============================================================================
 # Tool Configuration for Setuptools
@@ -60,7 +53,7 @@ dev = [
 [tool.setuptools.packages.find]
 # CRITICAL CHANGE FOR SRC LAYOUT:
 # Tell setuptools to look for packages inside the 'src' directory.
-# It will find 'muzai-core' and all its sub-packages.
+
 where = ["src"]
 # IMPORTANT: Explicitly exclude the tests package from the final build.
-exclude = ["muzai-core.tests*"]
+exclude = [""]
