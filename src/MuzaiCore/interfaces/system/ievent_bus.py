@@ -1,23 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 
 class IEventBus(ABC):
-    """A central dispatcher for domain events."""
 
     @abstractmethod
     def subscribe(self, event_type, handler):
-        ...
+        pass
 
     @abstractmethod
     def unsubscribe(self, event_type, handler):
-        ...
+        pass
 
     @abstractmethod
     def publish(self, event):
-        ...
+        pass
 
     @abstractmethod
     def clear(self):
-        """Clears all subscriptions."""
         pass

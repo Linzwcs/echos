@@ -7,7 +7,7 @@ from ...models import Port, Connection
 
 
 class IRouter(ILifecycleAware, ABC):
-    # --- Existing Methods ---
+
     @abstractmethod
     def add_node(self, node: INode):
         pass

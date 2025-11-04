@@ -7,187 +7,145 @@ All events inherit from a common BaseEvent.
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List
 
 from .clip_model import Note, AnyClip
 from .routing_model import Connection
 from .mixer_model import Send
+from .timeline_model import Tempo, TimeSignature
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseEvent:
-    """The base class for all domain events."""
-    timestamp: datetime = field(default_factory=datetime.utcnow, init=False)
-    event_id: uuid.UUID = field(default_factory=uuid.uuid4, init=False)
+
+    timestamp: datetime = field(default_factory=datetime.now)
+    event_id: uuid.UUID = field(default_factory=uuid.uuid4)
 
 
-# ========================================================================
-# IProjectSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class ProjectLoaded(BaseEvent):
-    """Fired when a project has been fully loaded into memory."""
     project: "Project"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ProjectClosed(BaseEvent):
-    """Fired when a project is about to be closed and cleaned up."""
     project: "Project"
 
 
-# ========================================================================
-# IGraphSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class NodeAdded(BaseEvent):
-    """Fired when a node is added to the project."""
     node: "INode"
 
 
-@dataclass
+@dataclass(frozen=True)
 class NodeRemoved(BaseEvent):
-    """Fired when a node is removed from the project."""
     node_id: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class NodeRenamed:
     node_id: str
     old_name: str
     new_name: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConnectionAdded(BaseEvent):
-    """Fired when a connection is made between two nodes."""
     connection: "Connection"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConnectionRemoved(BaseEvent):
-    """Fired when a connection between two nodes is broken."""
     connection: "Connection"
 
 
-# ========================================================================
-# IMixerSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class InsertAdded(BaseEvent):
-    """Fired when a plugin is added to a track's insert chain."""
     owner_node_id: str
     plugin: "IPlugin"
     index: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class InsertRemoved(BaseEvent):
-    """Fired when a plugin is removed from a track's insert chain."""
     owner_node_id: str
     plugin_id: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class InsertMoved(BaseEvent):
-    """
-    Fired when a plugin's position is changed within a track's insert chain.
-    
-    This event signals a structural change in the audio signal flow for a specific track,
-    requiring subscribers (like a SyncController) to potentially rebuild connections
-    in the audio backend.
-    """
 
     owner_node_id: str
-    """The unique ID of the track or node that owns the insert chain."""
-
     plugin_id: str
-    """The unique ID of the plugin instance that was moved."""
-
     old_index: int
-    """The original index (position) of the plugin in the chain before the move."""
-
     new_index: int
-    """The requested new index (position) for the plugin in the chain."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class PluginEnabledChanged(BaseEvent):
-    """Fired when a plugin's bypass state is changed."""
+
     plugin_id: str
     is_enabled: bool
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParameterChanged(BaseEvent):
-    """Fired when a parameter's base value changes."""
+
     owner_node_id: str
     param_name: str
     new_value: Any
 
 
-# ========================================================================
-# ITransportSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class TempoChanged(BaseEvent):
-    """Fired when a tempo event is added or changed."""
-    beat: float
-    new_bpm: float
+
+    tempos: tuple[Tempo]
 
 
-@dataclass
+@dataclass(frozen=True)
 class TimeSignatureChanged(BaseEvent):
-    """Fired when a time signature event is added or changed."""
-    beat: float
-    numerator: int
-    denominator: int
+
+    time_signatures: tuple[TimeSignature]
 
 
-# ========================================================================
-# ITrackSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class ClipAdded(BaseEvent):
-    """Fired when a clip is added to a track."""
+
     owner_track_id: str
     clip: AnyClip
 
 
-@dataclass
+@dataclass(frozen=True)
 class ClipRemoved(BaseEvent):
-    """Fired when a clip is removed from a track."""
+
     owner_track_id: str
     clip_id: str
 
 
-# ========================================================================
-# IClipSync Events
-# ========================================================================
-@dataclass
+@dataclass(frozen=True)
 class NoteAdded(BaseEvent):
-    """Fired when one or more notes are added to a clip."""
+
     owner_clip_id: str
     notes: List[Note]
 
 
-@dataclass
+@dataclass(frozen=True)
 class NoteRemoved(BaseEvent):
-    """Fired when one or more notes are removed from a clip."""
+
     owner_clip_id: str
     notes: List[Note]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SendAdded(BaseEvent):
-    """Fired when a send is added to a mixer channel."""
+
     owner_node_id: str
     send: Send
 
 
-@dataclass
+@dataclass(frozen=True)
 class SendRemoved(BaseEvent):
-    """Fired when a send is removed from a mixer channel."""
+
     owner_node_id: str
     send_id: str
-    target_bus_node_id: str  # Important for the sync controller to know which connection to break
+    target_bus_node_id: str

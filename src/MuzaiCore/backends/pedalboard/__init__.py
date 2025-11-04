@@ -2,7 +2,7 @@ from .engine import PedalboardEngine
 from .render_graph import PedalboardRenderGraph
 from .sync_controller import PedalboardSyncController
 from .factory import PedalboardNodeFactory, PedalboardEngineFactory
-from .registry import PedalboardPluginRegistry
+from .plugin.registry import PedalboardPluginRegistry
 
 __all__ = [
     "PedalboardEngine",
@@ -19,12 +19,6 @@ def create_pedalboard_backend(
     sample_rate: int = 48000,
     block_size: int = 512,
 ):
-    """
-    便捷函数：创建完整的 Pedalboard 后端
-    
-    Returns:
-        (node_factory, plugin_registry, engine_factory) 的元组
-    """
     node_factory = PedalboardNodeFactory()
     plugin_registry = PedalboardPluginRegistry()
     engine_factory = PedalboardEngineFactory()

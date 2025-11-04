@@ -1,21 +1,13 @@
-# file: src/MuzaiCore/core/mixer.py
 from typing import List, Dict, Optional, Any
 import uuid
-
 from .parameter import Parameter
 from ..interfaces import IMixerChannel, IPlugin, IParameter, IEventBus
 from ..interfaces.system.ilifecycle import ILifecycleAware
 from ..interfaces.system.inode import IPlugin
-from ..models.event_model import (InsertAdded, InsertRemoved, InsertMoved,
-                                  SendAdded, SendRemoved)
 from ..models.mixer_model import Send
 
 
 class MixerChannel(IMixerChannel):
-    """
-    优化后的混音器通道
-    自动管理参数和插件的生命周期
-    """
 
     def __init__(self, channel_id: Optional[str] = None):
         super().__init__()
@@ -59,7 +51,7 @@ class MixerChannel(IMixerChannel):
         return list(self._sends)
 
     def get_parameters(self) -> Dict[str, Parameter]:
-        """获取所有参数（包括插件参数）"""
+
         params = {
             "volume": self._volume,
             "pan": self._pan,
@@ -75,8 +67,12 @@ class MixerChannel(IMixerChannel):
 
         return params
 
+    def set_parameter(self, name: str, value: Any):
+        parameters = self.get_parameters()
+        parameters[name].set_value(value)
+
     def add_insert(self, plugin: IPlugin, index: Optional[int] = None):
-        """添加插件到插入链"""
+
         if index is None:
             self._inserts.append(plugin)
             actual_index = len(self._inserts) - 1
@@ -95,7 +91,7 @@ class MixerChannel(IMixerChannel):
                             index=actual_index))
 
     def remove_insert(self, plugin_id: str) -> bool:
-        """移除插件"""
+
         for i, plugin in enumerate(self._inserts):
             if plugin.node_id == plugin_id:
                 removed = self._inserts.pop(i)
@@ -110,7 +106,7 @@ class MixerChannel(IMixerChannel):
         return False
 
     def move_insert(self, plugin_id: str, new_index: int) -> bool:
-        """移动插件位置"""
+
         old_index = -1
         plugin_to_move = None
 
@@ -136,7 +132,7 @@ class MixerChannel(IMixerChannel):
         return False
 
     def add_send(self, target_bus_id: str, is_post_fader: bool = True) -> Send:
-        """添加发送"""
+
         send_level = Parameter(owner_node_id=self._channel_id,
                                name=f"send_to_{target_bus_id[:8]}",
                                default_value=-100.0,
@@ -151,7 +147,6 @@ class MixerChannel(IMixerChannel):
 
         self._sends.append(send)
 
-        # 如果通道已挂载，立即挂载发送的level参数
         if self.is_mounted:
             send_level.mount(self._event_bus)
 
@@ -162,7 +157,7 @@ class MixerChannel(IMixerChannel):
         return send
 
     def remove_send(self, send_id: str) -> bool:
-        """移除发送"""
+
         for i, send in enumerate(self._sends):
             if send.send_id == send_id:
                 removed = self._sends.pop(i)
@@ -177,7 +172,7 @@ class MixerChannel(IMixerChannel):
         return False
 
     def to_dict(self) -> dict:
-        """序列化为字典"""
+
         return {
             "channel_id":
             self._channel_id,
@@ -199,7 +194,7 @@ class MixerChannel(IMixerChannel):
         }
 
     def _get_children(self) -> List[ILifecycleAware]:
-        """返回所有子组件"""
+
         children = [self._volume, self._pan, self._input_gain]
         children.extend(self._inserts)
         for send in self._sends:
