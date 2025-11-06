@@ -5,7 +5,7 @@ from .itimeline import IDomainTimeline
 from .icommand import ICommandManager
 from .ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
-from .iengine import IEngine
+from .iengine import IEngine, IEngineController
 
 
 class IProject(ILifecycleAware, ABC):
@@ -28,12 +28,11 @@ class IProject(ILifecycleAware, ABC):
     @property
     @abstractmethod
     def timeline(self) -> IDomainTimeline:
-
         pass
 
     @property
     @abstractmethod
-    def engine(self) -> IEngine:
+    def engine_controller(self) -> IEngineController:
         pass
 
     @property
@@ -44,16 +43,6 @@ class IProject(ILifecycleAware, ABC):
     @property
     @abstractmethod
     def event_bus(self) -> IEventBus:
-        pass
-
-    @property
-    @abstractmethod
-    def attach_engine(self, engine: IEngine):
-        pass
-
-    @property
-    @abstractmethod
-    def detach_engine(self, engine: IEngine):
         pass
 
     @abstractmethod

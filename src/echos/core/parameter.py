@@ -1,11 +1,7 @@
-# file: src/MuzaiCore/core/parameter.py
 from typing import Any, Dict, List, Optional, Callable, Tuple
-from enum import Enum
-import bisect
 
 import threading
 import time
-from collections import defaultdict
 
 from ..models.parameter_model import AutomationPoint, AutomationLane, AutomationCurveType
 from ..models.engine_model import TransportContext

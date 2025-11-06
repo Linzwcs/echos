@@ -1,4 +1,3 @@
-# file: src/MuzaiCore/persistence/project_serializer.py
 from typing import Optional, Dict, List, cast
 from ..interfaces.system import (IProject, INode, IPlugin, ITrack,
                                  INodeFactory, IProjectSerializer,

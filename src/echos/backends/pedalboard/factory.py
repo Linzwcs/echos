@@ -31,20 +31,14 @@ class PedalboardEngineFactory(IEngineFactory):
 
 class PedalboardNodeFactory(INodeFactory):
 
-    def create_instrument_track(self, name: str) -> ITrack:
-        return InstrumentTrack(name=name)
+    def create_instrument_track(self, name: str, track_id=None) -> ITrack:
+        return InstrumentTrack(name=name, node_id=track_id)
 
-    def create_audio_track(self, name: str) -> ITrack:
-        return AudioTrack(name=name)
+    def create_audio_track(self, name: str, track_id=None) -> ITrack:
+        return AudioTrack(name=name, node_id=track_id)
 
-    def create_bus_track(self, name: str) -> ITrack:
-        return BusTrack(name=name)
+    def create_bus_track(self, name: str, track_id=None) -> ITrack:
+        return BusTrack(name=name, node_id=track_id)
 
-    def create_vca_track(self, name: str) -> ITrack:
-        return VCATrack(name=name)
-
-    def create_plugin_instance(self, descriptor: PluginDescriptor) -> IPlugin:
-        return Plugin(
-            descriptor=descriptor,
-            event_bus=None,
-        )
+    def create_vca_track(self, name: str, track_id=None) -> ITrack:
+        return VCATrack(name=name, node_id=track_id)

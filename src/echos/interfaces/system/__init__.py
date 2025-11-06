@@ -1,7 +1,7 @@
 # flake8: noqa
 from .icommand import ICommand, ICommandManager
 from .idaw_manager import IDAWManager
-from .iengine import IEngine
+from .iengine import IEngine, IEngineController
 from .ievent_bus import IEventBus
 from .ifactory import IEngineFactory, INodeFactory
 from .ilifecycle import ILifecycleAware
@@ -21,6 +21,7 @@ __all__ = [
     "IDAWManager",
     "IDomainTimeline",
     "IEngine",
+    "IEngineController",
     "IEngineFactory",
     "IEngineTimeline",
     "IEventBus",

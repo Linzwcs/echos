@@ -1,17 +1,20 @@
-# file: src/MuzaiCore/services/transport_service.py
+from ..agent.tools import tool
 from ..interfaces import IDAWManager, ITransportService
 from ..models import ToolResponse, TransportStatus
 from ..core.history.commands.transport_command import SetTempoCommand, SetTimeSignatureCommand
 
 
 class TransportService(ITransportService):
-    """走带控制服务的具体实现。"""
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager
 
+    @tool(category="transport",
+          description="Start playback",
+          returns="Playback status",
+          examples=["play(project_id='...')"])
     def play(self, project_id: str) -> ToolResponse:
-        """播放是瞬时引擎操作，不进入撤销栈。"""
+
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
@@ -19,14 +22,17 @@ class TransportService(ITransportService):
 
         if project._audio_engine:
             project._audio_engine.play()
-            # 注意：在真实应用中，状态应由引擎事件驱动更新
+            from echos.models import TransportStatus
             project._transport_status = TransportStatus.PLAYING
             return ToolResponse("success", {"status": "playing"},
                                 "Playback started.")
         return ToolResponse("error", None, "No audio engine attached.")
 
+    @tool(category="transport",
+          description="Stop playback",
+          returns="Playback status")
     def stop(self, project_id: str) -> ToolResponse:
-        """停止也是瞬时引擎操作。"""
+
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
@@ -34,32 +40,60 @@ class TransportService(ITransportService):
 
         if project._audio_engine:
             project._audio_engine.stop()
+            from echos.models import TransportStatus
             project._transport_status = TransportStatus.STOPPED
             return ToolResponse("success", {"status": "stopped"},
                                 "Playback stopped.")
         return ToolResponse("error", None, "No audio engine attached.")
 
-    def set_tempo(self, project_id: str, bpm: float) -> ToolResponse:
+    @tool(category="transport",
+          description="Pause playback",
+          returns="Playback status")
+    def pause(self, project_id: str) -> ToolResponse:
+
+        return ToolResponse("error", None, "Pause not implemented in engine.")
+
+    @tool(category="transport",
+          description="Set project tempo in BPM",
+          returns="Updated tempo",
+          examples=[
+              "set_tempo(project_id='...', bpm=120.0)",
+              "set_tempo(project_id='...', bpm=140.0)"
+          ])
+    def set_tempo(self, project_id: str, beat: float,
+                  bpm: float) -> ToolResponse:
+
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        command = SetTempoCommand(project.timeline, bpm)
+        from echos.core.history.commands.transport_command import SetTempoCommand
+        command = SetTempoCommand(project.timeline, beat, bpm)
         project.command_manager.execute_command(command)
 
         if command.is_executed:
             return ToolResponse("success", {"tempo": bpm}, command.description)
         return ToolResponse("error", None, command.error)
 
-    def set_time_signature(self, project_id: str, numerator: int,
+    @tool(
+        category="transport",
+        description="Set project time signature",
+        returns="Updated time signature",
+        examples=[
+            "set_time_signature(project_id='...', numerator=4, denominator=4)",
+            "set_time_signature(project_id='...', numerator=3, denominator=4)"
+        ])
+    def set_time_signature(self, project_id: str, beat: float, numerator: int,
                            denominator: int) -> ToolResponse:
+
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        command = SetTimeSignatureCommand(project.timeline, numerator,
+        from echos.core.history.commands.transport_command import SetTimeSignatureCommand
+        command = SetTimeSignatureCommand(project.timeline, beat, numerator,
                                           denominator)
         project.command_manager.execute_command(command)
 
@@ -70,7 +104,13 @@ class TransportService(ITransportService):
             }, command.description)
         return ToolResponse("error", None, command.error)
 
+    @tool(
+        category="transport",
+        description="Get current transport state",
+        returns=
+        "Transport state including tempo, time signature, and playback status")
     def get_transport_state(self, project_id: str) -> ToolResponse:
+
         project = self._manager.get_project(project_id)
         if not project:
             return ToolResponse("error", None,
@@ -83,7 +123,3 @@ class TransportService(ITransportService):
             "current_beat": project.current_beat
         }
         return ToolResponse("success", state, "Transport state retrieved.")
-
-    def pause(self, project_id: str) -> ToolResponse:
-        return ToolResponse("error", None,
-                            "Pause is not implemented in mock engine.")

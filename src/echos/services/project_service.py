@@ -5,7 +5,6 @@ from ..models import ToolResponse
 
 
 class ProjectService(IProjectService):
-    """项目管理服务的具体实现。"""
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager
@@ -16,16 +15,21 @@ class ProjectService(IProjectService):
         returns="Project ID and basic information",
         examples=['create_project(name="My Song")'],
     )
-    def create_project(self, name: str) -> ToolResponse:
-        """
-        创建项目是系统级操作，它创建了CommandManager的上下文，
-        因此它本身不通过Command执行。
-        """
+    def create_project(
+        self,
+        name: str,
+        project_id: str = None,
+        sample_rate: int = 48000,
+        block_size: int = 512,
+        output_channels: int = 2,
+    ) -> ToolResponse:
         try:
-            print("this")
-            print(name)
-            project = self._manager.create_project(name)
-            project.initialize()  # 挂载组件，启动参数批处理等
+            project = self._manager.create_project(
+                name=name,
+                project_id=project_id,
+                sample_rate=sample_rate,
+                block_size=block_size,
+                output_channels=output_channels)
             return ToolResponse(
                 status="success",
                 data={
@@ -36,15 +40,23 @@ class ProjectService(IProjectService):
         except Exception as e:
             return ToolResponse("error", None, str(e))
 
-    # close, save, load 的实现会依赖于具体的持久化策略，这里暂时省略
+    @tool(category="project",
+          description="Save project to file",
+          returns="Save operation result")
     def save_project(self, project_id: str, file_path: str) -> ToolResponse:
         return ToolResponse("error", None,
                             "Save functionality not implemented yet.")
 
+    @tool(category="project",
+          description="Load project from file",
+          returns="Loaded project information")
     def load_project(self, file_path: str) -> ToolResponse:
         return ToolResponse("error", None,
                             "Load functionality not implemented yet.")
 
+    @tool(category="project",
+          description="Close an open project",
+          returns="Close operation result")
     def close_project(self, project_id: str) -> ToolResponse:
         if self._manager.close_project(project_id):
             return ToolResponse("success", {"project_id": project_id},

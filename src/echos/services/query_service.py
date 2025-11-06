@@ -4,7 +4,6 @@ from ..models import ToolResponse
 
 
 class QueryService(IQueryService):
-    """只读查询服务的实现。"""
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager

@@ -1,4 +1,3 @@
-# file: src/MuzaiCore/core/history/commands/node_commands.py
 from typing import Optional, List
 from ....interfaces import IRouter, INode, ITrack, IPlugin, IProject
 from ....interfaces.system.ifactory import INodeFactory
@@ -6,12 +5,10 @@ from ....models import Connection, PluginDescriptor
 from ..command_base import BaseCommand
 
 
-# --- (已有 CreateTrackCommand 和 RenameNodeCommand) ---
 class CreateTrackCommand(BaseCommand):
-    """创建一个新轨道的命令。"""
 
     def __init__(self, router: IRouter, node_factory: INodeFactory,
-                 track_type: str, name: str):
+                 track_type: str, name: str, track_id: str):
         super().__init__(f"Create {track_type} '{name}'")
         self._router = router
         self._node_factory = node_factory
@@ -100,7 +97,6 @@ class DeleteNodeCommand(BaseCommand):
 
 
 class AddInsertPluginCommand(BaseCommand):
-    """向轨道添加插件的命令。"""
 
     def __init__(self, track: ITrack, node_factory: INodeFactory,
                  plugin_descriptor: PluginDescriptor, index: Optional[int]):
@@ -130,7 +126,6 @@ class AddInsertPluginCommand(BaseCommand):
 
 
 class RemoveInsertPluginCommand(BaseCommand):
-    """从轨道移除插件的命令。"""
 
     def __init__(self, track: ITrack, plugin_instance_id: str):
         self._track = track

@@ -43,6 +43,10 @@ class ITrack(INode):
     def clips(self) -> List[AnyClip]:
         pass
 
+    @abstractmethod
+    def add_clip(self, clip: AnyClip):
+        pass
+
 
 class IPlugin(INode):
 

@@ -6,7 +6,7 @@ from .ibase_service import IService
 
 
 class INodeService(IService):
-    # --- Create ---
+
     @abstractmethod
     def create_instrument_track(self, project_id: str,
                                 name: str) -> ToolResponse:
@@ -24,7 +24,6 @@ class INodeService(IService):
     def create_vca_track(self, project_id: str, name: str) -> ToolResponse:
         pass
 
-    # --- Modify ---
     @abstractmethod
     def delete_node(self, project_id: str, node_id: str) -> ToolResponse:
         pass

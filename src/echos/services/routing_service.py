@@ -5,7 +5,6 @@ from ..core.history.commands.routing_commands import CreateSendCommand
 
 
 class RoutingService(IRoutingService):
-    """路由服务的实现。"""
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager
@@ -50,7 +49,6 @@ class RoutingService(IRoutingService):
             return ToolResponse("success", data, command.description)
         return ToolResponse("error", None, command.error)
 
-    # Connect/disconnect/list 涉及更底层的 Router 操作，它们通常也应该有对应的 Command
     def connect(self, project_id: str, source_node_id: str,
                 source_port_id: str, dest_node_id: str,
                 dest_port_id: str) -> ToolResponse:

@@ -1,13 +1,10 @@
-# file: src/MuzaiCore/core/history/commands/routing_commands.py
 from typing import Optional
 from ....interfaces import IMixerChannel, IRouter
-from ....models import Send, Port, Connection
+from ....models import Send, Port
 from ..command_base import BaseCommand
 
 
-# --- (已有 CreateSendCommand) ---
 class CreateSendCommand(BaseCommand):
-    """在混音通道上创建发送的命令。"""
 
     def __init__(self, mixer_channel: IMixerChannel, target_bus_id: str,
                  is_post_fader: bool):

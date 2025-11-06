@@ -1,11 +1,8 @@
-# file: src/MuzaiCore/core/history/commands/transport_commands.py
-from typing import Tuple
 from ..command_base import BaseCommand
 from ....interfaces.system import IDomainTimeline
 
 
 class SetTempoCommand(BaseCommand):
-    """一个设置速度的可撤销命令。"""
 
     def __init__(self, timeline: IDomainTimeline, beat: float, new_bpm: float):
         super().__init__(f"Set Tempo to {new_bpm:.2f} BPM")
@@ -15,7 +12,7 @@ class SetTempoCommand(BaseCommand):
         self._old_state = timeline.timeline_state
 
     def _do_execute(self) -> bool:
-        self._timeline.add_tempo(beat=self._beat, bpm=self._new_bpm)
+        self._timeline.set_tempo(beat=self._beat, bpm=self._new_bpm)
         return True
 
     def _do_undo(self) -> bool:
@@ -44,7 +41,7 @@ class SetTimeSignatureCommand(BaseCommand):
         self._old_state = timeline.timeline_state
 
     def _do_execute(self) -> bool:
-        self._timeline.add_time_signature(beat=self._beat,
+        self._timeline.set_time_signature(beat=self._beat,
                                           numerator=self._new_ts[0],
                                           denominator=self._new_ts[1])
         return True

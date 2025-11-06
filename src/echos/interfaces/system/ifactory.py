@@ -22,21 +22,17 @@ class IEngineFactory(ABC):
 class INodeFactory(ABC):
 
     @abstractmethod
-    def create_instrument_track(self, name: str) -> ITrack:
+    def create_instrument_track(self, name: str, track_id=None) -> ITrack:
         pass
 
     @abstractmethod
-    def create_audio_track(self, name: str) -> ITrack:
+    def create_audio_track(self, name: str, track_id=None) -> ITrack:
         pass
 
     @abstractmethod
-    def create_bus_track(self, name: str) -> ITrack:
+    def create_bus_track(self, name: str, track_id=None) -> ITrack:
         pass
 
     @abstractmethod
-    def create_vca_track(self, name: str) -> ITrack:
-        pass
-
-    @abstractmethod
-    def create_plugin_instance(self, descriptor: PluginDescriptor) -> IPlugin:
+    def create_vca_track(self, name: str, track_id=None) -> ITrack:
         pass

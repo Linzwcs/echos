@@ -39,7 +39,7 @@ class Timeline(IDomainTimeline):
         self._sync_timeline_state()
         return old_state
 
-    def add_tempo(self, beat: float, bpm: float):
+    def set_tempo(self, beat: float, bpm: float):
         if beat < 0 or bpm <= 0:
             return
 
@@ -55,7 +55,7 @@ class Timeline(IDomainTimeline):
 
         self.set_state(new_state)
 
-    def add_time_signature(self, beat: float, numerator: int,
+    def set_time_signature(self, beat: float, numerator: int,
                            denominator: int):
 
         if beat < 0 or numerator <= 0 or denominator <= 0:

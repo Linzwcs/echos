@@ -9,7 +9,14 @@ from ...models.project_model import ProjectState
 class IDAWManager(ABC):
 
     @abstractmethod
-    def create_project(self, name: str) -> IProject:
+    def create_project(
+        self,
+        name: str,
+        project_id: str,
+        sample_rate: int,
+        block_size: int,
+        output_channels: int,
+    ) -> IProject:
         pass
 
     @abstractmethod

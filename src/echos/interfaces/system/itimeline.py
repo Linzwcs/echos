@@ -58,11 +58,11 @@ class IDomainTimeline(
         pass
 
     @abstractmethod
-    def add_tempo(self, beat: float, bpm: float):
+    def set_tempo(self, beat: float, bpm: float):
         pass
 
     @abstractmethod
-    def add_time_signature(self, beat: float, bpm: float):
+    def set_time_signature(self, beat: float, bpm: float):
         pass
 
     @abstractmethod

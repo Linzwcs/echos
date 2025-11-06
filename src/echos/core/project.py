@@ -1,15 +1,12 @@
 import uuid
 from typing import Optional, List, Tuple
-
 from .router import Router
 from .timeline import Timeline
 from .history.command_manager import CommandManager
 from .event_bus import EventBus
 from .parameter import Parameter
-from ..interfaces.system import (IProject, INode, IRouter, IDomainTimeline,
-                                 ICommandManager, IEngine, IEventBus)
-from ..interfaces.system.ilifecycle import ILifecycleAware
-from ..models.engine_model import TransportStatus
+from .engine_controller import EngineController
+from ..interfaces.system import IProject
 
 
 class Project(IProject):
@@ -23,11 +20,9 @@ class Project(IProject):
         self._router = Router()
         self._timeline = Timeline()
         self._command_manager = CommandManager()
+        self._engine_controller = EngineController(router=self._router,
+                                                   timeline=self._timeline)
 
-        self._transport_status = TransportStatus.STOPPED
-        self._current_beat = 0.0
-
-        self._audio_engine: Optional['IEngine'] = None
         self.initialize()
 
     @property
@@ -51,8 +46,8 @@ class Project(IProject):
         return self._command_manager
 
     @property
-    def engine(self) -> IEngine:
-        return self._audio_engine
+    def engine_controller(self) -> EngineController:
+        return self._engine_controller
 
     @property
     def event_bus(self) -> EventBus:
@@ -63,39 +58,8 @@ class Project(IProject):
         Parameter.initialize_batch_updater(self._event_bus_instance)
         print(f"Project '{self._name}': ✓ Initialized")
 
-    def attach_engine(self, engine: IEngine):
-        if not self.is_mounted:
-            raise RuntimeError(
-                "Project must be initialized before attaching engine")
-
-        if self._audio_engine:
-            print("Project: Replacing existing engine")
-            self.detach_engine()
-
-        self._audio_engine = engine
-        engine.mount(self._event_bus_instance)
-        from ..models.event_model import ProjectLoaded
-        self._event_bus_instance.publish(
-            ProjectLoaded(timeline_state=self._timeline.timeline_state))
-
-        print(f"Project '{self._name}': ✓ Engine attached")
-
-    def detach_engine(self):
-        if not self._audio_engine:
-            return
-
-        from ..models.event_model import ProjectClosed
-        self._event_bus_instance.publish(ProjectClosed())
-
-        self._audio_engine.unmount()
-        self._audio_engine = None
-        print(f"Project '{self._name}': ✓ Engine detached")
-
     def cleanup(self):
         print(f"Project '{self._name}': Cleaning up...")
-
-        if self._audio_engine:
-            self.detach_engine()
 
         self.unmount()
 
@@ -146,14 +110,14 @@ class Project(IProject):
             "has_audio_engine": self._audio_engine is not None,
         }
 
-    def _on_mount(self, event_bus: IEventBus = None):
+    def _on_mount(self, event_bus: EventBus = None):
         self._event_bus = self._event_bus_instance
 
     def _on_unmount(self):
         self._event_bus = None
 
     def _get_children(self):
-        return [self._router, self._timeline]
+        return [self._router, self._timeline, self._engine_controller]
 
     def __repr__(self) -> str:
         stats = self.get_statistics()

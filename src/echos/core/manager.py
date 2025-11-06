@@ -45,18 +45,19 @@ class DAWManager(IDAWManager):
     def create_project(
         self,
         name: str,
+        project_id: str = None,
         sample_rate: int = 48000,
         block_size: int = 512,
         output_channels: int = 2,
     ) -> IProject:
 
-        project = Project(name=name)
+        project = Project(name=name, project_id=project_id)
         engine = self._engine_factory.create_engine(
             plugin_registry=self._plugin_registry,
             sample_rate=sample_rate,
             block_size=block_size,
             output_channels=output_channels)
-        project.attach_engine(engine)
+        project.engine_controller.attach_engine(engine)
         self._projects[project.project_id] = project
 
         return project

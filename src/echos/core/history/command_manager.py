@@ -5,14 +5,6 @@ from ...interfaces.system import ICommandManager
 
 
 class MacroCommand(BaseCommand):
-    """
-    宏命令 - 组合多个命令
-    
-    改进：
-    - 原子性执行（全成功或全失败）
-    - 嵌套支持
-    - 清晰的错误报告
-    """
 
     def __init__(self, description: str):
         super().__init__(description)
@@ -20,26 +12,22 @@ class MacroCommand(BaseCommand):
         self._is_recording = True
 
     def add_command(self, command: BaseCommand):
-        """添加子命令"""
+
         if not self._is_recording:
             raise RuntimeError("Cannot add commands to a finalized macro")
         self._commands.append(command)
 
     def finalize(self):
-        """结束记录"""
+
         self._is_recording = False
 
     def _do_execute(self) -> bool:
-        """
-        原子性执行所有子命令
-        
-        如果任何命令失败，撤销所有已执行的命令
-        """
+
         executed_commands = []
 
         for cmd in self._commands:
             if not cmd.execute():
-                # 失败：撤销所有已执行的命令
+
                 print(
                     f"MacroCommand: Aborting due to failed command: {cmd.description}"
                 )
@@ -52,13 +40,11 @@ class MacroCommand(BaseCommand):
         return True
 
     def _do_undo(self) -> bool:
-        """按相反顺序撤销所有子命令"""
+
         for cmd in reversed(self._commands):
             if not cmd.undo():
                 print(
                     f"MacroCommand Warning: Failed to undo {cmd.description}")
-                # 继续尝试撤销其他命令
-                # 在实际应用中，这里可能需要更复杂的错误处理
 
         print(f"MacroCommand: ↶ Undone macro '{self.description}'")
         return True
