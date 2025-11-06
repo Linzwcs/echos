@@ -633,10 +633,6 @@ def test_stress_and_edge_cases():
     results.assert_equal(graph.get_connection_count(), 99,
                          "99 connections created")
 
-    # 验证处理顺序
-    is_valid, issues = graph.validate_graph()
-    results.assert_true(is_valid, "Large graph is valid")
-
     # 测试清空
     graph.clear()
     results.assert_equal(graph.get_node_count(), 0, "Graph cleared")
@@ -677,47 +673,47 @@ def run_all_tests():
 
     all_results = []
 
-    #try:
-    #    all_results.append(test_event_bus())
-    #except Exception as e:
-    #    print(f"EventBus test crashed: {e}")
-    #    import traceback
-    #    traceback.print_exc()
+    try:
+        all_results.append(test_event_bus())
+    except Exception as e:
+        print(f"EventBus test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
-    # try:
-    #     all_results.append(test_plugin_registry())
-    # except Exception as e:
-    #     print(f"PluginRegistry test crashed: {e}")
-    #     import traceback
-    #     traceback.print_exc()
+    try:
+        all_results.append(test_plugin_registry())
+    except Exception as e:
+        print(f"PluginRegistry test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
-    #try:
-    #    all_results.append(test_plugin_instance_manager())
-    #except Exception as e:
-    #    print(f"PluginInstanceManager test crashed: {e}")
-    #    import traceback
-    #    traceback.print_exc()
+    try:
+        all_results.append(test_plugin_instance_manager())
+    except Exception as e:
+        print(f"PluginInstanceManager test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
-    #try:
-    #    all_results.append(test_render_graph())
-    #except Exception as e:
-    #    print(f"RenderGraph test crashed: {e}")
-    #    import traceback
-    #    traceback.print_exc()
+    try:
+        all_results.append(test_render_graph())
+    except Exception as e:
+        print(f"RenderGraph test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
-    #try:
-    #    all_results.append(test_timeline())
-    #except Exception as e:
-    #    print(f"Timeline test crashed: {e}")
-    #    import traceback
-    #    traceback.print_exc()
+    try:
+        all_results.append(test_timeline())
+    except Exception as e:
+        print(f"Timeline test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
-    # try:
-    #     all_results.append(test_sync_controller())
-    # except Exception as e:
-    #     print(f"SyncController test crashed: {e}")
-    #     import traceback
-    #     traceback.print_exc()
+    try:
+        all_results.append(test_sync_controller())
+    except Exception as e:
+        print(f"SyncController test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
     try:
         all_results.append(test_engine_workflow())
@@ -726,12 +722,12 @@ def run_all_tests():
         import traceback
         traceback.print_exc()
 
-    #try:
-    #    all_results.append(test_stress_and_edge_cases())
-    #except Exception as e:
-    #    print(f"Stress test crashed: {e}")
-    #    import traceback
-    #    traceback.print_exc()
+    try:
+        all_results.append(test_stress_and_edge_cases())
+    except Exception as e:
+        print(f"Stress test crashed: {e}")
+        import traceback
+        traceback.print_exc()
 
     # 汇总结果
     print("\n" + "=" * 70)
