@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -255,16 +256,19 @@ class IntegrationTest:
 
         try:
             project = self.manager.create_project("Transport Test",
-                                                  output_channels=1)
+                                                  output_channels=2)
 
             # 测试播放/停止
-            print(project.engine._device_id)
-            project.engine.play()
-            assert project.engine.is_playing is True
+
+            project.engine_controller.play()
+
+            print(project.engine_controller.is_playing)
+            assert project.engine_controller.is_playing is True
             print("  ✓ 播放功能正常")
 
-            project.engine.stop()
-            assert project.engine.is_playing is False
+            project.engine_controller.stop()
+
+            assert project.engine_controller.is_playing is False
             print("  ✓ 停止功能正常")
 
             self.manager.close_project(project.project_id)
@@ -286,13 +290,11 @@ class IntegrationTest:
 
             project = self.manager.create_project("History Test")
 
-            # 执行命令
             cmd = SetTempoCommand(project.timeline, 0, 140.0)
             project.command_manager.execute_command(cmd)
             assert project.timeline.tempos == [Tempo(beat=0, bpm=140.0)]
             print("  ✓ 命令执行成功")
 
-            # 撤销
             project.command_manager.undo()
             assert project.timeline.tempos == [Tempo(beat=0, bpm=120.0)]
             print("  ✓ 撤销功能正常")
@@ -313,7 +315,7 @@ class IntegrationTest:
             return False
 
     def test_event_system(self):
-        """测试7: 事件系统"""
+
         print("\n测试7: 事件系统")
 
         try:
@@ -345,7 +347,7 @@ class IntegrationTest:
             return False
 
     def test_facade_interface(self):
-        """测试8: Facade接口"""
+
         print("\n测试8: Facade接口")
 
         try:
@@ -363,21 +365,17 @@ class IntegrationTest:
 
             facade = DAWFacade(self.manager, services)
 
-            # 测试项目创建
             result = facade.project.create_project("Facade Test")
             assert result.status == "success"
             print("  ✓ Facade项目创建成功")
 
-            # 设置活动项目
             project_id = result.data["project_id"]
             result = facade.set_active_project(project_id)
             assert result.status == "success"
             print("  ✓ Facade活动项目设置成功")
 
-            # 创建轨道
             result = facade.execute_tool(
-                "node",
-                "create_instrument_track",
+                "node.create_instrument_track",
                 project_id=project_id,
                 name="Piano",
             )
