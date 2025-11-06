@@ -10,21 +10,20 @@ authors = [
 description = "A modular, interface-driven AI agent for music co-production."
 readme = "Readme.md"
 requires-python = ">=3.10"
-license = { text="MIT" } # For simplicity, can also use { file="LICENSE" }
+license = { file="LICENSE" }
 keywords = ["ai", "music", "daw", "midi", "agent", "llm", "composition"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache 2.0 License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Multimedia :: Sound/Audio :: MIDI",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-# --- Core & Optional Dependencies ---
 dependencies = [
-    
+    pedalboard>=0.9.19,
 ]
 
 [project.optional-dependencies]
@@ -43,9 +42,9 @@ dev = [
 # --- Project URLs ---
 [project.urls]
 
-# Homepage = "https://github.com/linzwcs/echos"
+Homepage = "https://github.com/linzwcs/echos"
 
-# "Bug Tracker" = "https://github.com/linzwcs/echos/issues"
+"Bug Tracker" = "https://github.com/linzwcs/echos/issues"
 
 # ==============================================================================
 # Tool Configuration for Setuptools
