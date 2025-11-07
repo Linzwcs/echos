@@ -23,7 +23,11 @@ classifiers = [
 ]
 
 dependencies = [
-    pedalboard>=0.9.19,
+    "pedalboard",
+    "sounddevice",
+    "mido",
+    "python-rtmidi",
+    "networkx",
 ]
 
 [project.optional-dependencies]
