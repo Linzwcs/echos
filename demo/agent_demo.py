@@ -1,12 +1,7 @@
-"""
-Agent Demo - 使用AI Agent控制DAW
-演示如何使用工具装饰器和AgentToolkit创建智能音乐制作助手
-"""
 import sys
 from pathlib import Path
 import json
 
-# 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from echos.core import DAWManager
@@ -20,334 +15,12 @@ from echos.core.persistence import ProjectSerializer
 from echos.facade import DAWFacade
 from echos.services import *
 from echos.agent.tools import AgentToolkit, tool
-from echos.models import ToolResponse
-
-# ============================================================================
-# 1. 创建自定义工具服务
-# ============================================================================
-
-
-class MusicCompositionService:
-    """音乐创作服务 - 演示如何创建自定义工具"""
-
-    def __init__(self, facade: DAWFacade):
-        self._facade = facade
-
-    @tool(category="composition",
-          description="Create a basic chord progression on a track",
-          returns="Created MIDI clips with chord progression")
-    def create_chord_progression(self,
-                                 track_name: str,
-                                 progression: str,
-                                 tempo: float = 120.0) -> ToolResponse:
-        """
-        Create a chord progression on specified track.
-        
-        Args:
-            track_name: Name of the instrument track
-            progression: Chord progression (e.g., "C-Am-F-G")
-            tempo: Tempo in BPM
-            
-        Returns:
-            Success response with created clips
-        """
-        try:
-            # 解析和弦进行
-            chords = progression.split("-")
-
-            # 和弦音符映射 (简化版)
-            chord_notes = {
-                "C": [60, 64, 67],  # C E G
-                "Am": [57, 60, 64],  # A C E
-                "F": [65, 69, 72],  # F A C
-                "G": [67, 71, 74],  # G B D
-                "Dm": [62, 65, 69],  # D F A
-                "Em": [64, 67, 71],  # E G B
-            }
-
-            # 查找轨道
-            result = self._facade.query.find_node_by_name(name=track_name)
-            if result.status == "error" or not result.data["nodes"]:
-                return ToolResponse("error", None,
-                                    f"Track '{track_name}' not found")
-
-            track_id = result.data["nodes"][0]["node_id"]
-
-            # 创建片段
-            clips_created = []
-
-            for i, chord in enumerate(chords):
-                if chord not in chord_notes:
-                    continue
-
-                # 创建片段
-                clip_result = self._facade.editing.create_midi_clip(
-                    track_id=track_id,
-                    start_beat=float(i * 4),
-                    duration_beats=4.0,
-                    name=f"{chord} Chord")
-
-                if clip_result.status == "success":
-                    clip_id = clip_result.data["clip_id"]
-
-                    # 添加和弦音符
-                    notes = [{
-                        "pitch": pitch,
-                        "velocity": 80,
-                        "start_beat": 0.0,
-                        "duration_beats": 3.5
-                    } for pitch in chord_notes[chord]]
-
-                    self._facade.editing.add_notes_to_clip(clip_id=clip_id,
-                                                           notes=notes)
-
-                    clips_created.append({
-                        "chord": chord,
-                        "clip_id": clip_id,
-                        "start_beat": i * 4
-                    })
-
-            return ToolResponse(
-                "success", {
-                    "track_id": track_id,
-                    "clips": clips_created,
-                    "progression": progression
-                }, f"Created {len(clips_created)} chord clips: {progression}")
-
-        except Exception as e:
-            return ToolResponse("error", None, str(e))
-
-    @tool(category="composition",
-          description="Create a drum pattern",
-          returns="Created drum pattern clip")
-    def create_drum_pattern(self,
-                            track_name: str,
-                            pattern: str = "basic",
-                            bars: int = 4) -> ToolResponse:
-        """
-        Create a drum pattern on specified track.
-        
-        Args:
-            track_name: Name of the drum track
-            pattern: Pattern type ("basic", "rock", "electronic")
-            bars: Number of bars (4 beats per bar)
-            
-        Returns:
-            Success response with created clip
-        """
-        try:
-            # 鼓组音符映射 (General MIDI)
-            drum_notes = {
-                "kick": 36,
-                "snare": 38,
-                "hihat_closed": 42,
-                "hihat_open": 46,
-            }
-
-            # 预设模式
-            patterns = {
-                "basic": [
-                    ("kick", [0.0, 2.0]),
-                    ("snare", [1.0, 3.0]),
-                    ("hihat_closed", [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]),
-                ],
-                "rock": [
-                    ("kick", [0.0, 1.5, 2.0, 3.5]),
-                    ("snare", [1.0, 3.0]),
-                    ("hihat_closed", [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]),
-                    ("hihat_open", [0.75, 2.75]),
-                ],
-                "electronic": [
-                    ("kick", [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]),
-                    ("snare", [1.0, 3.0]),
-                    ("hihat_closed",
-                     [0.25, 0.75, 1.25, 1.75, 2.25, 2.75, 3.25, 3.75]),
-                ],
-            }
-
-            if pattern not in patterns:
-                return ToolResponse(
-                    "error", None,
-                    f"Unknown pattern: {pattern}. Available: {list(patterns.keys())}"
-                )
-
-            # 查找轨道
-            result = self._facade.query.find_node_by_name(name=track_name)
-            if result.status == "error" or not result.data["nodes"]:
-                return ToolResponse("error", None,
-                                    f"Track '{track_name}' not found")
-
-            track_id = result.data["nodes"][0]["node_id"]
-
-            # 创建片段
-            clip_result = self._facade.editing.create_midi_clip(
-                track_id=track_id,
-                start_beat=0.0,
-                duration_beats=float(bars * 4),
-                name=f"{pattern.title()} Drum Pattern")
-
-            if clip_result.status != "success":
-                return clip_result
-
-            clip_id = clip_result.data["clip_id"]
-
-            # 生成音符
-            notes = []
-            for bar in range(bars):
-                for drum, beats in patterns[pattern]:
-                    for beat in beats:
-                        notes.append({
-                            "pitch": drum_notes[drum],
-                            "velocity": 100,
-                            "start_beat": bar * 4 + beat,
-                            "duration_beats": 0.1
-                        })
-
-            # 添加音符
-            result = self._facade.editing.add_notes_to_clip(clip_id=clip_id,
-                                                            notes=notes)
-
-            return ToolResponse(
-                "success", {
-                    "track_id": track_id,
-                    "clip_id": clip_id,
-                    "pattern": pattern,
-                    "bars": bars,
-                    "note_count": len(notes)
-                }, f"Created {pattern} drum pattern with {len(notes)} notes")
-
-        except Exception as e:
-            return ToolResponse("error", None, str(e))
-
-    @tool(category="composition",
-          description="Create a bass line that follows a chord progression",
-          returns="Created bass line clip")
-    def create_bass_line(self,
-                         track_name: str,
-                         progression: str,
-                         style: str = "root") -> ToolResponse:
-        """
-        Create a bass line following a chord progression.
-        
-        Args:
-            track_name: Name of the bass track
-            progression: Chord progression (e.g., "C-Am-F-G")
-            style: Bass style ("root", "walking", "octave")
-            
-        Returns:
-            Success response with created bass clip
-        """
-        try:
-            # 和弦根音映射
-            root_notes = {
-                "C": 48,  # C2
-                "Am": 45,  # A1
-                "F": 53,  # F2
-                "G": 55,  # G2
-                "Dm": 50,  # D2
-                "Em": 52,  # E2
-            }
-
-            chords = progression.split("-")
-
-            # 查找轨道
-            result = self._facade.query.find_node_by_name(name=track_name)
-            if result.status == "error" or not result.data["nodes"]:
-                return ToolResponse("error", None,
-                                    f"Track '{track_name}' not found")
-
-            track_id = result.data["nodes"][0]["node_id"]
-
-            # 创建片段
-            clip_result = self._facade.editing.create_midi_clip(
-                track_id=track_id,
-                start_beat=0.0,
-                duration_beats=float(len(chords) * 4),
-                name="Bass Line")
-
-            if clip_result.status != "success":
-                return clip_result
-
-            clip_id = clip_result.data["clip_id"]
-
-            # 生成贝斯线
-            notes = []
-
-            for i, chord in enumerate(chords):
-                if chord not in root_notes:
-                    continue
-
-                root = root_notes[chord]
-                start_beat = float(i * 4)
-
-                if style == "root":
-                    # 简单根音
-                    notes.append({
-                        "pitch": root,
-                        "velocity": 100,
-                        "start_beat": start_beat,
-                        "duration_beats": 3.5
-                    })
-
-                elif style == "walking":
-                    # 行走贝斯
-                    for beat in [0.0, 1.0, 2.0, 3.0]:
-                        notes.append({
-                            "pitch":
-                            root +
-                            (1 if beat == 1.0 else
-                             0 if beat == 2.0 else -1 if beat == 3.0 else 0),
-                            "velocity":
-                            100,
-                            "start_beat":
-                            start_beat + beat,
-                            "duration_beats":
-                            0.9
-                        })
-
-                elif style == "octave":
-                    # 八度贝斯
-                    notes.extend([
-                        {
-                            "pitch": root,
-                            "velocity": 100,
-                            "start_beat": start_beat,
-                            "duration_beats": 0.4
-                        },
-                        {
-                            "pitch": root + 12,
-                            "velocity": 80,
-                            "start_beat": start_beat + 0.5,
-                            "duration_beats": 0.4
-                        },
-                    ])
-
-            # 添加音符
-            result = self._facade.editing.add_notes_to_clip(clip_id=clip_id,
-                                                            notes=notes)
-
-            return ToolResponse(
-                "success", {
-                    "track_id": track_id,
-                    "clip_id": clip_id,
-                    "progression": progression,
-                    "style": style,
-                    "note_count": len(notes)
-                }, f"Created {style} bass line with {len(notes)} notes")
-
-        except Exception as e:
-            return ToolResponse("error", None, str(e))
-
-
-# ============================================================================
-# 2. 初始化系统
-# ============================================================================
 
 
 def initialize_daw_system():
-    """初始化完整的DAW系统"""
+
     print("\n" + "=" * 70)
-    print("初始化DAW系统...")
+    print("Initializing DAW system...")
     print("=" * 70)
 
     plugin_cache = PluginCache()
@@ -374,54 +47,47 @@ def initialize_daw_system():
         "routing": RoutingService(manager),
     }
 
-    # 创建Facade
+    # Create Facade
     facade = DAWFacade(manager, services)
 
-    # 添加自定义创作服务
-    composition_service = MusicCompositionService(facade)
-    facade._services["composition"] = composition_service
-
-    # 为自定义服务设置属性访问
-    setattr(facade, "composition", composition_service)
-
-    print("✓ DAW系统初始化完成")
+    print("✓ DAW system initialization complete")
 
     return facade, manager
 
 
 # ============================================================================
-# 3. 创建Agent工具包
+# 3. Create Agent Toolkit
 # ============================================================================
 
 
 def create_agent_toolkit(facade: DAWFacade):
-    """创建Agent工具包"""
+    """Create Agent toolkit"""
     print("\n" + "=" * 70)
-    print("创建Agent工具包...")
+    print("Creating Agent toolkit...")
     print("=" * 70)
 
     toolkit = AgentToolkit(facade)
 
-    # 显示可用工具
+    # Display available tools
     tools = toolkit.list_tools()
 
-    print(f"\n✓ 工具包创建完成")
-    print(f"  - 总工具数: {len(tools)}")
+    print(f"\n✓ Toolkit creation complete")
+    print(f"  - Total tools: {len(tools)}")
 
-    # 按类别分组
+    # Group by category
     categories = {}
     for tool in tools:
         if tool.category not in categories:
             categories[tool.category] = []
         categories[tool.category].append(tool.name)
 
-    print(f"\n工具分类:")
+    print(f"\nTool Categories:")
     for category, tool_names in sorted(categories.items()):
-        print(f"  {category}: {len(tool_names)} 个工具")
-        for name in tool_names[:3]:  # 显示前3个
+        print(f"  {category}: {len(tool_names)} tools")
+        for name in tool_names[:3]:  # Display first 3
             print(f"    - {name}")
         if len(tool_names) > 3:
-            print(f"    ... 还有 {len(tool_names) - 3} 个")
+            print(f"    ... and {len(tool_names) - 3} more")
 
     return toolkit
 
@@ -429,12 +95,12 @@ def create_agent_toolkit(facade: DAWFacade):
 def demo_1_simple_project_creation(toolkit: AgentToolkit):
 
     print("\n" + "=" * 70)
-    print("演示1: 使用Agent创建简单项目")
+    print("Demo 1: Create a simple project using the Agent")
     print("=" * 70)
 
-    print("\n用户: '创建一个名为 Electronic Track 的项目'")
+    print("\nUser: 'Create a project named Electronic Track'")
 
-    print("\nAgent执行:")
+    print("\nAgent executes:")
 
     result = toolkit.execute("project.create_project", name="Electronic Track")
     print(f"  1. {result.message}")
@@ -442,12 +108,12 @@ def demo_1_simple_project_creation(toolkit: AgentToolkit):
 
     result = toolkit.execute("manager.set_active_project",
                              project_id=project_id)
-    print(f"  2. 设置活动项目")
+    print(f"  2. Set active project")
 
     result = toolkit.execute("transport.set_tempo", bpm=128.0)
     print(f"  3. {result.message}")
 
-    print("\n✓ 项目创建完成!")
+    print("\n✓ Project creation complete!")
 
     return project_id
 
@@ -455,18 +121,18 @@ def demo_1_simple_project_creation(toolkit: AgentToolkit):
 def demo_2_create_song_structure(toolkit: AgentToolkit):
 
     print("\n" + "=" * 70)
-    print("演示2: 使用Agent创建完整歌曲结构")
+    print("Demo 2: Create a complete song structure using the Agent")
     print("=" * 70)
 
-    print("\n用户: '创建一首包含鼓、贝斯和钢琴的流行歌曲'")
+    print("\nUser: 'Create a pop song with drums, bass, and piano'")
 
-    print("\nAgent规划:")
-    print("  1. 创建项目")
-    print("  2. 创建三个轨道")
-    print("  3. 添加内容到每个轨道")
-    print("  4. 调整混音")
+    print("\nAgent planning:")
+    print("  1. Create a project")
+    print("  2. Create three tracks")
+    print("  3. Add content to each track")
+    print("  4. Adjust the mix")
 
-    print("\nAgent执行:")
+    print("\nAgent executes:")
 
     result = toolkit.execute("project.create_project", name="Pop Song")
     print(f"  ✓ {result.message}")
@@ -474,7 +140,7 @@ def demo_2_create_song_structure(toolkit: AgentToolkit):
 
     toolkit.execute("transport.set_tempo", bpm=120.0)
     toolkit.execute("transport.set_time_signature", numerator=4, denominator=4)
-    print(f"  ✓ 设置速度: 120 BPM, 拍号: 4/4")
+    print(f"  ✓ Set tempo: 120 BPM, time signature: 4/4")
 
     tracks = []
 
@@ -485,7 +151,7 @@ def demo_2_create_song_structure(toolkit: AgentToolkit):
         print(result)
         tracks.append(result.data["node_id"])
 
-        print(f"  ✓ 创建轨道: {name}")
+        print(f"  ✓ Created track: {name}")
 
     result = toolkit.execute("editing.create_midi_clip",
                              project_id=project_id,
@@ -525,9 +191,9 @@ def demo_2_create_song_structure(toolkit: AgentToolkit):
                                                  "Piano"].index(track_name)],
                                  parameter_name="volume",
                                  value=volume)
-        print(f"  ✓ 设置 {track_name} 音量: {volume} dB")
+        print(f"  ✓ Set {track_name} volume: {volume} dB")
 
-    print("\n✓ 歌曲结构创建完成!")
+    print("\n✓ Song structure creation complete!")
 
     return project_id
 
@@ -535,10 +201,11 @@ def demo_2_create_song_structure(toolkit: AgentToolkit):
 def demo_3_agent_chain_execution(toolkit: AgentToolkit):
 
     print("\n" + "=" * 70)
-    print("演示3: Agent链式执行复杂任务")
+    print("Demo 3: Agent chain execution for a complex task")
     print("=" * 70)
 
-    print("\n用户: '创建一个电子音乐项目，包含完整的编曲'")
+    print(
+        "\nUser: 'Create an electronic music project with a full arrangement'")
 
     chain = [
         {
@@ -585,47 +252,47 @@ def demo_3_agent_chain_execution(toolkit: AgentToolkit):
         },
     ]
 
-    print(f"\nAgent执行链 ({len(chain)} 步):")
+    print(f"\nAgent execution chain ({len(chain)} steps):")
 
     results = toolkit.execute_chain(chain)
 
     for i, result in enumerate(results, 1):
         status_icon = "✓" if result.status == "success" else "✗"
-        print(f"  {status_icon} 步骤 {i}: {result.message}")
+        print(f"  {status_icon} Step {i}: {result.message}")
 
         if result.status == "error":
-            print(f"    错误: {result.message}")
+            print(f"    Error: {result.message}")
             break
 
     if all(r.status == "success" for r in results):
-        print("\n✓ 所有步骤执行成功!")
+        print("\n✓ All steps executed successfully!")
     else:
-        print("\n✗ 执行链中断")
+        print("\n✗ Execution chain interrupted")
 
     return results
 
 
 def demo_4_export_tools_for_llm(toolkit: AgentToolkit):
-    """演示4: 导出工具供LLM使用"""
+    """Demo 4: Export tools for LLM use"""
     print("\n" + "=" * 70)
-    print("演示4: 导出工具定义供LLM使用")
+    print("Demo 4: Export tool definitions for LLM use")
     print("=" * 70)
 
-    print("\n导出OpenAI格式工具定义...")
+    print("\nExporting tool definitions in OpenAI format...")
     openai_tools = toolkit.export_tools(format="openai")
-    print(f"  ✓ 导出 {len(openai_tools)} 个工具")
+    print(f"  ✓ Exported {len(openai_tools)} tools")
 
     if openai_tools:
-        print("\n示例工具 (OpenAI格式):")
+        print("\nExample tool (OpenAI format):")
         example = openai_tools[0]
         print(json.dumps(example, indent=2))
 
-    print("\n导出Anthropic格式工具定义...")
+    print("\nExporting tool definitions in Anthropic format...")
     anthropic_tools = toolkit.export_tools(format="anthropic")
-    print(f"  ✓ 导出 {len(anthropic_tools)} 个工具")
+    print(f"  ✓ Exported {len(anthropic_tools)} tools")
 
     if anthropic_tools:
-        print("\n示例工具 (Anthropic格式):")
+        print("\nExample tool (Anthropic format):")
         example = anthropic_tools[0]
         print(json.dumps(example, indent=2))
 
@@ -638,7 +305,7 @@ def demo_4_export_tools_for_llm(toolkit: AgentToolkit):
     with open(output_dir / "anthropic_tools.json", "w") as f:
         json.dump(anthropic_tools, f, indent=2)
 
-    print(f"\n✓ 工具定义已保存到 {output_dir}/")
+    print(f"\n✓ Tool definitions saved to {output_dir}/")
 
     return openai_tools, anthropic_tools
 
@@ -646,7 +313,7 @@ def demo_4_export_tools_for_llm(toolkit: AgentToolkit):
 def demo_5_tool_documentation(toolkit: AgentToolkit):
 
     print("\n" + "=" * 70)
-    print("演示5: 生成完整工具文档")
+    print("Demo 5: Generate complete tool documentation")
     print("=" * 70)
 
     doc = toolkit.get_documentation()
@@ -655,15 +322,15 @@ def demo_5_tool_documentation(toolkit: AgentToolkit):
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(doc)
 
-    print(f"✓ 文档已生成: {output_file}")
+    print(f"✓ Documentation generated: {output_file}")
 
-    print("\n文档预览 (前20行):")
+    print("\nDocumentation preview (first 20 lines):")
     print("-" * 70)
     lines = doc.split("\n")
     for line in lines[:20]:
         print(line)
     print("-" * 70)
-    print(f"... 总共 {len(lines)} 行")
+    print(f"... Total of {len(lines)} lines")
 
     return doc
 
@@ -671,12 +338,12 @@ def demo_5_tool_documentation(toolkit: AgentToolkit):
 def demo_6_execution_log(toolkit: AgentToolkit):
 
     print("\n" + "=" * 70)
-    print("演示6: 执行日志和调试")
+    print("Demo 6: Execution log and debugging")
     print("=" * 70)
 
     toolkit.clear_log()
 
-    print("\n执行操作...")
+    print("\nExecuting operations...")
     result = toolkit.execute("project.create_project", name="Log Test")
     toolkit.execute("transport.set_tempo",
                     project_id=result.data['project_id'],
@@ -688,17 +355,17 @@ def demo_6_execution_log(toolkit: AgentToolkit):
 
     log = toolkit.get_execution_log()
 
-    print(f"\n执行日志 (共 {len(log)} 条记录):")
+    print(f"\nExecution log (total of {len(log)} records):")
     print("-" * 70)
 
     for entry in log:
         if entry['type'] == 'execution':
-            print(f"[执行] {entry['tool']}")
-            print(f"  参数: {entry['params']}")
+            print(f"[Execution] {entry['tool']}")
+            print(f"  Parameters: {entry['params']}")
         elif entry['type'] == 'result':
-            print(f"[结果] {entry['status']}: {entry['message']}")
+            print(f"[Result] {entry['status']}: {entry['message']}")
         elif entry['type'] == 'error':
-            print(f"[错误] {entry['message']}")
+            print(f"[Error] {entry['message']}")
         print()
 
     print("-" * 70)
@@ -709,7 +376,7 @@ def demo_6_execution_log(toolkit: AgentToolkit):
 def demo_7_interactive_agent():
 
     print("\n" + "=" * 70)
-    print("演示7: 交互式音乐制作Agent")
+    print("Demo 7: Interactive Music Production Agent")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
@@ -719,9 +386,9 @@ def demo_7_interactive_agent():
                              name="Interactive Session")
     project_id = result.data["project_id"]
 
-    print("\n欢迎使用音乐制作Agent!")
-    print("输入 'help' 查看可用命令")
-    print("输入 'quit' 退出")
+    print("\nWelcome to the Music Production Agent!")
+    print("Type 'help' to see available commands")
+    print("Type 'quit' to exit")
 
     commands = {
         "create track":
@@ -771,16 +438,16 @@ def demo_7_interactive_agent():
         print(f"\n> {user_input}")
 
         if user_input == "quit":
-            print("再见!")
+            print("Goodbye!")
             break
 
         if user_input == "help":
-            print("可用命令:")
+            print("Available commands:")
             for cmd in commands.keys():
                 print(f"  - {cmd}")
             continue
 
-        # 解析命令
+        # Parse command
         parts = user_input.split()
 
         if len(parts) >= 2:
@@ -805,9 +472,9 @@ def demo_7_interactive_agent():
                     print(f"  → {result.message}")
 
                 except Exception as e:
-                    print(f"  ✗ 错误: {e}")
+                    print(f"  ✗ Error: {e}")
             else:
-                print("  ✗ 未知命令")
+                print("  ✗ Unknown command")
 
     manager.close_project(project_id)
 
@@ -815,45 +482,48 @@ def demo_7_interactive_agent():
 def run_all_demos():
 
     print("\n" + "=" * 70)
-    print("MuzaiCore Agent System - 完整演示")
+    print("MuzaiCore Agent System - Complete Demo")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
     toolkit = create_agent_toolkit(facade)
 
     demos = [
-        ("简单项目创建", lambda: demo_1_simple_project_creation(toolkit)),
-        ("创建歌曲结构", lambda: demo_2_create_song_structure(toolkit)),
-        ("链式执行", lambda: demo_3_agent_chain_execution(toolkit)),
-        ("导出工具定义", lambda: demo_4_export_tools_for_llm(toolkit)),
-        ("生成文档", lambda: demo_5_tool_documentation(toolkit)),
-        ("执行日志", lambda: demo_6_execution_log(toolkit)),
+        ("Simple Project Creation",
+         lambda: demo_1_simple_project_creation(toolkit)),
+        ("Create Song Structure",
+         lambda: demo_2_create_song_structure(toolkit)),
+        ("Chain Execution", lambda: demo_3_agent_chain_execution(toolkit)),
+        ("Export Tool Definitions",
+         lambda: demo_4_export_tools_for_llm(toolkit)),
+        ("Generate Documentation", lambda: demo_5_tool_documentation(toolkit)),
+        ("Execution Log", lambda: demo_6_execution_log(toolkit)),
     ]
 
     for i, (name, demo_func) in enumerate(demos, 1):
         print(f"\n{'='*70}")
-        print(f"运行演示 {i}/{len(demos)}: {name}")
+        print(f"Running Demo {i}/{len(demos)}: {name}")
         print(f"{'='*70}")
 
         try:
             demo_func()
-            print(f"\n✓ 演示 {i} 完成")
+            print(f"\n✓ Demo {i} complete")
         except Exception as e:
-            print(f"\n✗ 演示 {i} 失败: {e}")
+            print(f"\n✗ Demo {i} failed: {e}")
             import traceback
             traceback.print_exc()
 
-        input("\n按回车继续...")
+        input("\nPress Enter to continue...")
 
     print("\n" + "=" * 70)
-    print("所有演示完成!")
+    print("All demos complete!")
     print("=" * 70)
 
 
 def demo_llm_integration():
 
     print("\n" + "=" * 70)
-    print("LLM集成示例")
+    print("LLM Integration Example")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
@@ -861,17 +531,19 @@ def demo_llm_integration():
 
     tools = toolkit.export_tools(format="openai")
 
-    print("\n模拟与OpenAI GPT集成:")
+    print("\nSimulating integration with OpenAI GPT:")
     print("-" * 70)
 
     conversation = [{
-        "role": "user",
-        "content": "帮我创建一首电子音乐，包含鼓、贝斯和合成器"
+        "role":
+        "user",
+        "content":
+        "Help me create an electronic music track with drums, bass, and a synthesizer"
     }, {
         "role":
         "assistant",
         "content":
-        "我会帮您创建一首电子音乐。让我开始...",
+        "I will help you create an electronic music track. Let's get started...",
         "tool_calls": [{
             "function": "project.create_project",
             "arguments": {
@@ -909,20 +581,20 @@ def demo_llm_integration():
         }]
     }]
 
-    print("\nLLM建议的操作:")
+    print("\nLLM suggested actions:")
     for msg in conversation:
         if msg["role"] == "user":
-            print(f"\n用户: {msg['content']}")
+            print(f"\nUser: {msg['content']}")
         elif msg["role"] == "assistant":
             print(f"\nAssistant: {msg['content']}")
 
             if "tool_calls" in msg:
-                print("\n执行工具调用:")
+                print("\nExecuting tool calls:")
                 for call in msg["tool_calls"]:
                     func_name = call["function"]
                     args = call["arguments"]
 
-                    # 执行工具
+                    # Execute tool
                     result = toolkit.execute(func_name, **args)
 
                     status_icon = "✓" if result.status == "success" else "✗"
@@ -930,13 +602,13 @@ def demo_llm_integration():
                     print(f"     → {result.message}")
 
     print("\n" + "-" * 70)
-    print("✓ LLM集成示例完成")
+    print("✓ LLM integration example complete")
 
 
 def demo_anthropic_integration():
 
     print("\n" + "=" * 70)
-    print("Anthropic Claude集成示例")
+    print("Anthropic Claude Integration Example")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
@@ -944,12 +616,12 @@ def demo_anthropic_integration():
 
     tools = toolkit.export_tools(format="anthropic")
 
-    print("\n模拟与Claude集成:")
+    print("\nSimulating integration with Claude:")
     print("-" * 70)
 
-    print("\n用户请求: '创建一个爵士风格的项目'")
+    print("\nUser request: 'Create a jazz-style project'")
 
-    print("\nClaude分析并调用工具:")
+    print("\nClaude analyzes and calls tools:")
 
     tool_sequence = [
         ("project.create_project", {
@@ -963,17 +635,17 @@ def demo_anthropic_integration():
         }),
         ("node.create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 1",
+            "track_id": "track 1",
             "name": "Track 1"
         }),
         ("node.create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 2",
+            "track_id": "track 2",
             "name": "Track 2"
         }),
         ("node.create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 3",
+            "track_id": "track 3",
             "name": "Track 3"
         }),
     ]
@@ -983,79 +655,80 @@ def demo_anthropic_integration():
         status = "✓" if result.status == "success" else "✗"
         print(f"  {status} {tool_name}: {result.message}")
 
-    print("\nClaude: 我已经创建了一个爵士项目，包含钢琴、贝斯和鼓，")
-    print("        并添加了一个经典的爵士和弦进行 (Dm-G-C-Am)。")
+    print(
+        "\nClaude: I have created a jazz project with piano, bass, and drums,")
+    print("        and added a classic jazz chord progression (Dm-G-C-Am).")
 
     print("\n" + "-" * 70)
 
 
 def scenario_1_beginner_tutorial():
-    """场景1: 初学者教程"""
+    """Scenario 1: Beginner Tutorial"""
     print("\n" + "=" * 70)
-    print("应用场景1: 初学者教程助手")
+    print("Application Scenario 1: Beginner Tutorial Assistant")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
     toolkit = create_agent_toolkit(facade)
 
-    print("\n场景: 用户想学习如何创建第一首歌")
-    print("\nAgent教程:")
+    print("\nScenario: A user wants to learn how to create their first song")
+    print("\nAgent Tutorial:")
 
     steps = [
         {
             "instruction":
-            "第一步: 让我们创建一个新项目",
+            "Step 1: Let's create a new project",
             "action": ("project.create_project", {
                 "name": "Performance Test",
                 "project_id": "project 1"
             }),
             "explanation":
-            "项目是所有音乐内容的容器"
+            "A project is a container for all your musical content"
         },
         {
             "instruction":
-            "第二步: 设置速度为120 BPM（适合流行音乐）",
+            "Step 2: Set the tempo to 120 BPM (good for pop music)",
             "action": ("transport.set_tempo", {
                 "project_id": "project 1",
                 "beat": 0,
                 "bpm": 140.0
             }),
             "explanation":
-            "BPM决定音乐的快慢"
+            "BPM determines how fast or slow the music is"
         },
         {
             "instruction":
-            "第三步: 创建一个鼓轨道",
+            "Step 3: Create a drum track",
             "action": ("node.create_instrument_track", {
                 "project_id": "project 1",
-                "track_id": "tracl 1",
+                "track_id": "track 1",
                 "name": "Drums"
             }),
             "explanation":
-            "鼓提供节奏基础"
+            "Drums provide the rhythmic foundation"
         },
         {
             "instruction":
-            "第四步: 添加基础鼓点Clip",
+            "Step 4: Add a basic drum clip",
             "action": ("editing.create_midi_clip", {
                 "project_id": "project 1",
-                "track_id": "tracl 1",
+                "track_id": "track 1",
                 "start_beat": 0,
                 "duration_beats": 4.0,
                 "name": "Bass Midi Clip",
                 "clip_id": "clip 1",
             }),
             "explanation":
-            "这是一个简单的4小节鼓点"
+            "This is a simple 4-bar drum beat"
         },
         {
             "instruction":
-            "第四步: 添加基础鼓点模式",
+            "Step 4: Add a basic drum pattern",
             "action": ("editing.add_notes_to_clip", {
                 "project_id":
                 "project 1",
                 "track_id":
-                "tracl 1",
+                "track 1",
                 "clip_id":
                 "clip 1",
                 "notes": [{
@@ -1071,7 +744,7 @@ def scenario_1_beginner_tutorial():
                 }]
             }),
             "explanation":
-            "这是一个简单的4小节鼓点"
+            "This is a simple 4-bar drum pattern"
         },
     ]
 
@@ -1082,36 +755,38 @@ def scenario_1_beginner_tutorial():
         result = toolkit.execute(tool_name, **args)
 
         print(f"  → {result.message}")
-        print(f"  💡 提示: {step['explanation']}")
+        print(f"  💡 Tip: {step['explanation']}")
 
-    print("\n✓ 教程完成！您已经创建了第一首歌的基础。")
+    print(
+        "\n✓ Tutorial complete! You have created the foundation of your first song."
+    )
 
 
 def scenario_2_professional_workflow():
-    """场景2: 专业制作流程"""
+    """Scenario 2: Professional Production Workflow"""
     print("\n" + "=" * 70)
-    print("应用场景2: 专业音乐制作工作流")
+    print("Application Scenario 2: Professional Music Production Workflow")
     print("=" * 70)
 
     facade, manager = initialize_daw_system()
     toolkit = create_agent_toolkit(facade)
 
-    print("\n场景: 快速创建一首完整的流行歌曲编曲")
+    print("\nScenario: Quickly create a full pop song arrangement")
 
-    print("\n阶段1: 项目设置")
+    print("\nPhase 1: Project Setup")
     toolkit.execute("project_create_project", name="Pop Hit Production")
     toolkit.execute("transport_set_tempo", bpm=128.0)
-    print("  ✓ 项目初始化完成")
+    print("  ✓ Project initialization complete")
 
-    print("\n阶段2: 创建轨道结构")
+    print("\nPhase 2: Create Track Structure")
     tracks = ["Kick", "Snare", "Hi-Hat", "Bass", "Lead Synth", "Pad", "Vocals"]
     for track_name in tracks:
         toolkit.execute("node_create_instrument_track", name=track_name)
-    print(f"  ✓ 创建了 {len(tracks)} 个轨道")
+    print(f"  ✓ Created {len(tracks)} tracks")
 
-    print("\n阶段3: 添加音乐内容")
+    print("\nPhase 3: Add Musical Content")
 
-    # 鼓组部分
+    # Drum Section
     toolkit.execute("composition_create_drum_pattern",
                     track_name="Kick",
                     pattern="basic",
@@ -1120,9 +795,9 @@ def scenario_2_professional_workflow():
                     track_name="Hi-Hat",
                     pattern="electronic",
                     bars=8)
-    print("  ✓ 添加鼓组模式")
+    print("  ✓ Added drum patterns")
 
-    # 和声部分
+    # Harmony Section
     toolkit.execute("composition_create_chord_progression",
                     track_name="Pad",
                     progression="C-G-Am-F",
@@ -1131,16 +806,16 @@ def scenario_2_professional_workflow():
                     track_name="Lead Synth",
                     progression="C-G-Am-F",
                     tempo=128.0)
-    print("  ✓ 添加和弦进行")
+    print("  ✓ Added chord progressions")
 
-    # 贝斯线
+    # Bassline
     toolkit.execute("composition_create_bass_line",
                     track_name="Bass",
                     progression="C-G-Am-F",
                     style="octave")
-    print("  ✓ 添加贝斯线")
+    print("  ✓ Added bassline")
 
-    print("\n阶段4: 混音调整")
+    print("\nPhase 4: Mix Adjustments")
     mix_settings = [
         ("Kick", -3.0),
         ("Snare", -6.0),
@@ -1153,67 +828,67 @@ def scenario_2_professional_workflow():
     for track_name, volume in mix_settings:
         print(f"  ✓ {track_name}: {volume} dB")
 
-    print("\n✓ 专业编曲流程完成！")
-    print("  - 总计 7 个轨道")
-    print("  - 包含鼓组、贝斯、和声和主旋律")
-    print("  - 混音已经过基础调整")
+    print("\n✓ Professional arrangement workflow complete!")
+    print("  - 7 tracks in total")
+    print("  - Includes drums, bass, harmony, and lead melody")
+    print("  - Basic mix adjustments have been made")
 
 
 # ============================================================================
-# 11. 高级功能演示
+# 11. Advanced Feature Demonstration
 # ============================================================================
 
 
 def demo_advanced_tool_features(toolkit: AgentToolkit):
-    """演示高级工具特性"""
+    """Demonstrate advanced tool features"""
     print("\n" + "=" * 70)
-    print("高级功能: 工具特性演示")
+    print("Advanced Features: Tool Feature Demonstration")
     print("=" * 70)
 
-    # 1. 工具搜索
-    print("\n1. 工具搜索:")
-    print("   搜索所有创作相关的工具...")
+    # 1. Tool Search
+    print("\n1. Tool Search:")
+    print("   Searching for all composition-related tools...")
     composition_tools = toolkit.list_tools(category="composition")
-    print(f"   找到 {len(composition_tools)} 个创作工具:")
+    print(f"   Found {len(composition_tools)} composition tools:")
     for tool in composition_tools:
         print(f"     - {tool.name}: {tool.description}")
 
-    # 2. 获取特定工具的详细信息
-    print("\n2. 工具详细信息:")
+    # 2. Get detailed information for a specific tool
+    print("\n2. Tool Details:")
     tool = toolkit.get_tool("composition_create_chord_progression")
     if tool:
-        print(f"   工具: {tool.name}")
-        print(f"   描述: {tool.description}")
-        print(f"   参数:")
+        print(f"   Tool: {tool.name}")
+        print(f"   Description: {tool.description}")
+        print(f"   Parameters:")
         for param in tool.parameters:
-            req = "必需" if param.required else "可选"
+            req = "Required" if param.required else "Optional"
             print(
                 f"     - {param.name} ({param.type}, {req}): {param.description}"
             )
 
-    # 3. 获取工具文档
-    print("\n3. 单个工具文档:")
+    # 3. Get tool documentation
+    print("\n3. Single Tool Documentation:")
     doc = toolkit.get_documentation("composition_create_drum_pattern")
     print(doc)
 
 
 # ============================================================================
-# 12. 性能和监控
+# 12. Performance and Monitoring
 # ============================================================================
 
 
 def demo_performance_monitoring(toolkit: AgentToolkit):
-    """演示性能监控"""
+    """Demonstrate performance monitoring"""
     print("\n" + "=" * 70)
-    print("性能监控演示")
+    print("Performance Monitoring Demonstration")
     print("=" * 70)
 
     import time
 
-    # 清空日志
+    # Clear log
     toolkit.clear_log()
 
-    print("\n执行一系列操作并监控性能...")
+    print("\nExecuting a series of operations and monitoring performance...")
 
     operations = [
         ("project.create_project", {
@@ -1227,17 +902,17 @@ def demo_performance_monitoring(toolkit: AgentToolkit):
         }),
         ("node.create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 1",
+            "track_id": "track 1",
             "name": "Track 1"
         }),
         ("node_create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 2",
+            "track_id": "track 2",
             "name": "Track 2"
         }),
         ("node_create_instrument_track", {
             "project_id": "project 1",
-            "track_id": "tracl 3",
+            "track_id": "track 3",
             "name": "Track 3"
         }),
     ]
@@ -1253,51 +928,47 @@ def demo_performance_monitoring(toolkit: AgentToolkit):
 
     total_time = time.time() - start_time
 
-    print(f"\n性能统计:")
-    print(f"  总操作数: {len(operations)}")
-    print(f"  总耗时: {total_time*1000:.2f}ms")
-    print(f"  平均耗时: {total_time*1000/len(operations):.2f}ms")
+    print(f"\nPerformance Statistics:")
+    print(f"  Total operations: {len(operations)}")
+    print(f"  Total time: {total_time*1000:.2f}ms")
+    print(
+        f"  Average time per operation: {total_time*1000/len(operations):.2f}ms"
+    )
 
-    # 显示执行日志
+    # Display execution log
     log = toolkit.get_execution_log()
-    print(f"  日志记录数: {len(log)}")
+    print(f"  Number of log records: {len(log)}")
 
 
 # ============================================================================
-# 主程序
+# Main Program
 # ============================================================================
 
 
 def main():
-    """主程序"""
+    """Main program"""
     import sys
 
     print("\n" + "=" * 70)
-    print("MuzaiCore Agent System - 演示程序")
+    print("MuzaiCore Agent System - Demonstration Program")
     print("=" * 70)
 
-    print("\n可用演示:")
-    print("  1. 运行所有演示")
-    print("  2. 简单项目创建")
-    print("  3. 创建歌曲结构")
-    print("  4. 链式执行")
-    print("  5. 导出工具定义")
-    print("  6. LLM集成示例")
-    print("  7. 初学者教程场景")
-    print("  8. 专业制作场景")
-    print("  9. 协作Agent场景")
-    print(" 10. 交互式Agent")
-    print(" 11. 高级功能演示")
-    print(" 12. 性能监控")
+    print("\nAvailable Demos:")
+    print("  1. Run all demos")
+    print("  2. Simple project creation")
+    print("  3. Create song structure")
+    print("  4. Chain execution")
+    print("  5. Export tool definitions")
+    print("  6. LLM integration example")
+    print("  7. Beginner tutorial scenario")
+    print("  8. Professional production scenario")
+    print("  9. Advanced features demonstration")
+    print("  10. Performance monitoring")
 
     if len(sys.argv) > 1:
         choice = sys.argv[1]
     else:
-        choice = input("\n请选择 (1-12): ").strip()
-
-    if choice not in ["1", "7", "8", "9", "10"]:
-        facade, manager = initialize_daw_system()
-        toolkit = create_agent_toolkit(facade)
+        choice = input("\nPlease choose (1-10): ").strip()
 
     if choice == "1":
         run_all_demos()
@@ -1310,8 +981,12 @@ def main():
         toolkit = create_agent_toolkit(facade)
         demo_2_create_song_structure(toolkit)
     elif choice == "4":
+        facade, manager = initialize_daw_system()
+        toolkit = create_agent_toolkit(facade)
         demo_3_agent_chain_execution(toolkit)
     elif choice == "5":
+        facade, manager = initialize_daw_system()
+        toolkit = create_agent_toolkit(facade)
         demo_4_export_tools_for_llm(toolkit)
     elif choice == "6":
         demo_llm_integration()
@@ -1325,13 +1000,15 @@ def main():
         toolkit = create_agent_toolkit(facade)
         demo_advanced_tool_features(toolkit)
     elif choice == "10":
+        facade, manager = initialize_daw_system()
+        toolkit = create_agent_toolkit(facade)
         demo_performance_monitoring(toolkit)
     else:
-        print("无效选择")
+        print("Invalid choice")
         return
 
     print("\n" + "=" * 70)
-    print("演示完成!")
+    print("Demonstration complete!")
     print("=" * 70)
 
 
