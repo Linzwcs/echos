@@ -80,15 +80,17 @@ class MixerChannel(IMixerChannel):
             self._inserts.insert(index, plugin)
             actual_index = index
 
-        # 如果通道已挂载，立即挂载插件
         if self.is_mounted:
             plugin.mount(self._event_bus)
 
             from ..models.event_model import InsertAdded
+
             self._event_bus.publish(
-                InsertAdded(owner_node_id=self._channel_id,
-                            plugin=plugin,
-                            index=actual_index))
+                InsertAdded(
+                    owner_node_id=self._channel_id,
+                    plugin_instance_id=plugin.node_id,
+                    plugin_unique_id=plugin.descriptor.unique_plugin_id,
+                    index=actual_index))
 
     def remove_insert(self, plugin_id: str) -> bool:
 

@@ -20,7 +20,7 @@ class ProjectService(IProjectService):
         name: str,
         project_id: str = None,
         sample_rate: int = 48000,
-        block_size: int = 512,
+        block_size: int = 8192,
         output_channels: int = 2,
     ) -> ToolResponse:
         try:

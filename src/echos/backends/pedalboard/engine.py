@@ -203,7 +203,8 @@ class PedalboardEngine(IEngine):
             if self._status == TransportStatus.PLAYING:
                 audio_block = self._process_audio_block()
             else:
-                audio_block = np.zeros((2, frames), dtype=np.float32)
+                audio_block = np.zeros((self._output_channels, frames),
+                                       dtype=np.float32)
 
             outdata[:] = audio_block.T
 
@@ -222,6 +223,7 @@ class PedalboardEngine(IEngine):
     def _process_audio_block(self) -> np.ndarray:
         current_tempo = self._realtime_timeline.get_tempo_at_beat(
             self._current_beat)
+        current_tempo = current_tempo.bpm
 
         context = TransportContext(current_beat=self._current_beat,
                                    sample_rate=self._sample_rate,

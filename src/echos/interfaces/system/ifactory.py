@@ -36,3 +36,9 @@ class INodeFactory(ABC):
     @abstractmethod
     def create_vca_track(self, name: str, track_id=None) -> ITrack:
         pass
+
+    @abstractmethod
+    def create_plugin_instance(self,
+                               descriptor: PluginDescriptor,
+                               plugin_instance_id: str = None) -> IPlugin:
+        pass

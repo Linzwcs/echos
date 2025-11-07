@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List
-from .inode import INode
+from .inode import ITrack
 from .ilifecycle import ILifecycleAware
 from .ievent_bus import IEventBus
 from ...models import Port, Connection
@@ -9,11 +9,11 @@ from ...models import Port, Connection
 class IRouter(ILifecycleAware, ABC):
 
     @property
-    def nodes(self) -> dict[str, INode]:
+    def nodes(self) -> dict[str, ITrack]:
         pass
 
     @abstractmethod
-    def add_node(self, node: INode):
+    def add_node(self, node: ITrack):
         pass
 
     @abstractmethod

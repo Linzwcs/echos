@@ -167,7 +167,15 @@ class EditingService(IEditingService):
                                 f"Clip '{clip_id}' is not a MIDI clip.")
 
         try:
-            notes_to_add = [Note(**n) for n in notes]
+            notes_to_add = []
+            for n in notes:
+                if isinstance(n, Note):
+                    notes_to_add.append(n)
+                elif isinstance(n, dict):
+                    notes_to_add.append(Note(**n))
+                else:
+                    raise ValueError()
+
         except TypeError as e:
             return ToolResponse("error", None, f"Invalid note data: {e}")
 

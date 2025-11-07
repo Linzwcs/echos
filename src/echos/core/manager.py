@@ -35,6 +35,10 @@ class DAWManager(IDAWManager):
         print("=" * 70 + "\n")
 
     @property
+    def node_factory(self) -> INodeFactory:
+        return self._node_factory
+
+    @property
     def plugin_registry(self) -> IPluginRegistry:
         return self._plugin_registry
 

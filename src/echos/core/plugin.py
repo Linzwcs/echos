@@ -65,6 +65,12 @@ class Plugin(IPlugin):
             return self.descriptor.latency_samples
         return 0
 
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None
+
     def _get_children(self):
         return list(self._parameters.values())
 

@@ -1,10 +1,10 @@
 import numpy as np
 import pedalboard as pb
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from mido import Message
-from ...models import TransportContext, AnyClip, MIDIClip
+from ...models import TransportContext, AnyClip, MIDIClip, Note
 
 
 class IAudioNode(ABC):
@@ -22,10 +22,18 @@ class IAudioNode(ABC):
         pass
 
 
+NOTE_ON = 0
+NOTE_OFF = 1
+
+
 class BaseEffectNode(IAudioNode):
 
-    def __init__(self, node_id: str, node_type: str, sample_rate: int,
-                 block_size: int):
+    def __init__(self,
+                 node_id: str,
+                 node_type: str,
+                 sample_rate: int,
+                 block_size: int,
+                 output_channels: int = 2):
         super().__init__(node_id, node_type, sample_rate, block_size)
         self.pedalboard = pb.Pedalboard([])
         self.plugin_instance_map: Dict[str, pb.Plugin] = {}
@@ -33,6 +41,7 @@ class BaseEffectNode(IAudioNode):
         self.volume: float = 1.0
         self.pan: float = 0.0
         self.muted: bool = False
+        self._output_channels = output_channels
         self.latency_samples = 0
 
     def process(self, context: TransportContext,
@@ -135,15 +144,52 @@ class BaseEffectNode(IAudioNode):
 
 class InstrumentTrackNode(BaseEffectNode):
 
-    def __init__(self, node_id: str, node_type: str, sample_rate: int,
-                 block_size: int):
-        super().__init__(node_id, node_type, sample_rate, block_size)
+    def __init__(self,
+                 node_id: str,
+                 node_type: str,
+                 sample_rate: int,
+                 block_size: int,
+                 output_channels: int = 2):
+        super().__init__(node_id, node_type, sample_rate, block_size,
+                         output_channels)
         self.instrument = None
-        self._active_notes: Dict[str, tuple[int, float]] = {}
+
+        self._active_notes: Dict[str, int] = {}
+        self._sorted_events: List[Tuple[float, int, Note]] = []
+        self._event_idx = 0
+        self._needs_resort = True
+        self._last_beat = -1.0  # 用于检测播放指针的跳跃
+
+    def _prepare_events(self):
+
+        self._sorted_events = []
+        for clip in self.clips:
+            if not isinstance(clip, MIDIClip):
+                continue
+
+            for note in clip.notes:
+                note_start_beat = clip.start_beat + note.start_beat
+                note_end_beat = note_start_beat + note.duration_beats
+
+                self._sorted_events.append((note_start_beat, NOTE_ON, note))
+
+                self._sorted_events.append((note_end_beat, NOTE_OFF, note))
+
+        self._sorted_events.sort(key=lambda x: x[0])
+        self._event_idx = 0
+        self._needs_resort = False
+        print(
+            f"[Node {self.node_id[:6]}] Resorted {len(self._sorted_events)} MIDI events."
+        )
 
     def update_clips(self, clips: List[AnyClip]):
         super().update_clips(clips)
         self._active_notes.clear()
+        self._needs_resort = True
+
+    def add_clip(self, clip: AnyClip):
+        super().add_clip(clip)
+        self._needs_resort = True
 
     def process(self, context: TransportContext,
                 inputs: Dict[str, np.ndarray]) -> np.ndarray:
@@ -152,65 +198,56 @@ class InstrumentTrackNode(BaseEffectNode):
         if self.muted or not self.instrument:
             return np.zeros((2, self.block_size), dtype=np.float32)
 
+        if self._needs_resort:
+            self._prepare_events()
+
+        beats_per_block = (self.block_size /
+                           self.sample_rate) * (context.tempo / 60.0)
+
+        if abs(context.current_beat - self._last_beat) > beats_per_block * 2:
+
+            self._event_idx = 0
+            self._active_notes.clear()
+
+        self._last_beat = context.current_beat
+
         block_duration_seconds = self.block_size / self.sample_rate
         beats_per_second = context.tempo / 60.0
         block_start_beat = context.current_beat
-        block_end_beat = block_start_beat + (beats_per_second *
-                                             block_duration_seconds)
+        block_end_beat = block_start_beat + beats_per_block
 
         midi_messages = []
 
-        for clip in self.clips:
-            if not isinstance(clip, MIDIClip):
-                continue
+        while self._event_idx < len(self._sorted_events):
+            event_beat, event_type, note = self._sorted_events[self._event_idx]
 
-            clip_start_beat = clip.start_beat
-            clip_end_beat = clip_start_beat + clip.duration_beats
-            if max(block_start_beat,
-                   clip_start_beat) >= min(block_end_beat, clip_end_beat):
-                continue
+            if event_beat >= block_end_beat:
+                break
 
-            for note in clip.notes:
-                note_start_beat = clip_start_beat + note.start_beat
+            if event_beat >= block_start_beat:
+                time_in_beats = event_beat - block_start_beat
+                time_in_seconds = max(0, time_in_beats / beats_per_second)
 
-                if block_start_beat <= note_start_beat < block_end_beat:
+                if event_type == NOTE_ON:
                     if note.note_id not in self._active_notes:
-
-                        time_in_beats = note_start_beat - block_start_beat
-                        time_in_seconds = time_in_beats / beats_per_second
-
                         msg = Message('note_on',
                                       note=note.pitch,
                                       velocity=note.velocity,
                                       time=time_in_seconds)
                         midi_messages.append(msg)
+                        self._active_notes[note.note_id] = note.pitch
 
-                        note_end_beat = note_start_beat + note.duration_beats
-                        self._active_notes[note.note_id] = (note.pitch,
-                                                            note_end_beat)
+                elif event_type == NOTE_OFF:
+                    if note.note_id in self._active_notes:
+                        msg = Message('note_off',
+                                      note=note.pitch,
+                                      velocity=0,
+                                      time=time_in_seconds)
+                        midi_messages.append(msg)
+                        del self._active_notes[note.note_id]
 
-        notes_to_remove = []
-        for note_id, (pitch, note_end_beat) in self._active_notes.items():
+            self._event_idx += 1
 
-            if block_start_beat <= note_end_beat < block_end_beat:
-
-                time_in_beats = note_end_beat - block_start_beat
-                time_in_seconds = time_in_beats / beats_per_second
-
-                msg = Message('note_off',
-                              note=pitch,
-                              velocity=0,
-                              time=time_in_seconds)
-                midi_messages.append(msg)
-
-                notes_to_remove.append(note_id)
-
-        for note_id in notes_to_remove:
-            if note_id in self._active_notes:
-                del self._active_notes[note_id]
-
-        if midi_messages:
-            print(midi_messages)
         try:
             audio_after_instrument = self.instrument.process(
                 midi_messages=midi_messages,
@@ -219,7 +256,6 @@ class InstrumentTrackNode(BaseEffectNode):
                 buffer_size=self.block_size,
                 num_channels=2,
                 reset=False)
-
         except Exception as e:
             print(
                 f"[Node {self.node_id[:6]}] Error processing instrument: {e}")

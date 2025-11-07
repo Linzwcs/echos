@@ -56,13 +56,11 @@ class EngineController(IEngineController):
 
     @property
     def is_playing(self) -> bool:
-        """Returns True if the engine is currently playing."""
-        pass
+        return self._audio_engine.is_playing
 
     @property
     def current_beat(self) -> float:
-        """Gets the current playback position in beats."""
-        pass
+        return self._audio_engine.current_beat
 
     def _get_children(self):
         return []

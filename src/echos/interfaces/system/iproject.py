@@ -5,7 +5,7 @@ from .itimeline import IDomainTimeline
 from .icommand import ICommandManager
 from .ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
-from .iengine import IEngine, IEngineController
+from .iengine import IEngineController
 
 
 class IProject(ILifecycleAware, ABC):

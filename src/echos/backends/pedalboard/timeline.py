@@ -25,23 +25,18 @@ class RealTimeTimeline(IEngineTimeline):
         self._tempos = new_state.tempos
         self._time_signatures = new_state.time_signatures
 
-    def get_tempo_at_beat(self, beat: float) -> float:
-        if len(self.tempos) == 0:
-            return 120.0
-        idx = bisect.bisect_right(self._tempos, Tempo(beat=beat, bpm=math.inf))
-        if idx == 0:
-            return self._tempos[0].bpm
-        return self._tempos[idx - 1].bpm
+    def get_tempo_at_beat(self, beat: float) -> Tempo:
+
+        idx = bisect.bisect_right(self._tempos, beat, key=lambda t: t.beat)
+        return self._tempos[idx - 1]
 
     def get_time_signature_at_beat(self, beat: float) -> TimeSignature:
         if not self._time_signatures:
-            return TimeSignature(beat=0.0,
-                                 numerator=math.inf,
-                                 denominator=math.inf)
+            return TimeSignature(beat=0.0, numerator=4, denominator=4)
 
-        idx = bisect.bisect_right(
-            self._time_signatures,
-            TimeSignature(beat=beat, numerator=None, denominator=None))
+        idx = bisect.bisect_right(self._time_signatures,
+                                  beat,
+                                  key=lambda t: t.beat)
         if idx == 0:
             return self._time_signatures[0]
 

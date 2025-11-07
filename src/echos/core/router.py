@@ -1,7 +1,8 @@
 from typing import List, Dict, Optional
 import networkx as nx
 
-from ..interfaces.system import IRouter, INode, IPlugin
+from ..interfaces.system import IRouter, IPlugin, IEventBus
+from .track import Track
 from ..models.routing_model import Port, Connection
 from ..interfaces.system.ilifecycle import ILifecycleAware
 
@@ -10,7 +11,7 @@ class Router(IRouter):
 
     def __init__(self):
         super().__init__()
-        self._nodes: Dict[str, INode] = {}
+        self._nodes: Dict[str, Track] = {}
         self._connections: List[Connection] = []
         self._graph = nx.DiGraph()
 
@@ -18,7 +19,7 @@ class Router(IRouter):
     def nodes(self):
         return self._nodes
 
-    def add_node(self, node: 'INode'):
+    def add_node(self, node: 'Track'):
         if isinstance(node, IPlugin):
             raise ValueError(
                 "can not add plugin to graph, you should add to mixer")
@@ -61,11 +62,11 @@ class Router(IRouter):
             from ..models.event_model import NodeRemoved
             self._event_bus.publish(NodeRemoved(node_id=node_id))
 
-    def get_node_by_id(self, node_id: str) -> Optional['INode']:
+    def get_node_by_id(self, node_id: str) -> Optional['Track']:
 
         return self._nodes.get(node_id)
 
-    def get_all_nodes(self) -> List['INode']:
+    def get_all_nodes(self) -> List['Track']:
 
         return list(self._nodes.values())
 
@@ -173,6 +174,12 @@ class Router(IRouter):
             return True
         except nx.NetworkXNoCycle:
             return False
+
+    def _on_mount(self, event_bus: IEventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None
 
     def _get_children(self) -> List[ILifecycleAware]:
         return list(self._nodes.values())

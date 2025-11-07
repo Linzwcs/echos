@@ -20,12 +20,11 @@ class TransportService(ITransportService):
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        if project._audio_engine:
-            project._audio_engine.play()
-            from echos.models import TransportStatus
-            project._transport_status = TransportStatus.PLAYING
+        if project.engine_controller:
+            project.engine_controller.play()
             return ToolResponse("success", {"status": "playing"},
                                 "Playback started.")
+
         return ToolResponse("error", None, "No audio engine attached.")
 
     @tool(category="transport",
@@ -38,10 +37,8 @@ class TransportService(ITransportService):
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        if project._audio_engine:
-            project._audio_engine.stop()
-            from echos.models import TransportStatus
-            project._transport_status = TransportStatus.STOPPED
+        if project.engine_controller:
+            project.engine_controller.stop()
             return ToolResponse("success", {"status": "stopped"},
                                 "Playback stopped.")
         return ToolResponse("error", None, "No audio engine attached.")

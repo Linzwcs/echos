@@ -42,3 +42,9 @@ class PedalboardNodeFactory(INodeFactory):
 
     def create_vca_track(self, name: str, track_id=None) -> ITrack:
         return VCATrack(name=name, node_id=track_id)
+
+    def create_plugin_instance(self, descriptor: PluginDescriptor,
+                               plugin_instance_id: str) -> IPlugin:
+        return Plugin(descriptor=descriptor,
+                      event_bus=None,
+                      node_id=plugin_instance_id)

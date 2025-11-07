@@ -1,4 +1,3 @@
-# file: src/MuzaiCore/services/node_service.py
 from typing import Optional
 from ..agent.tools import tool
 from ..interfaces import IDAWManager, INodeService
@@ -23,7 +22,7 @@ class NodeService(INodeService):
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        node_factory = self._manager._node_factory
+        node_factory = self._manager.node_factory
         command = CreateTrackCommand(router=project.router,
                                      node_factory=node_factory,
                                      track_type=track_type,
@@ -100,7 +99,7 @@ class NodeService(INodeService):
             return ToolResponse("error", None,
                                 f"Project '{project_id}' not found.")
 
-        nodes = project.get_all_nodes()
+        nodes = project.router.nodes
         if node_type:
             nodes = [n for n in nodes if n.node_type == node_type]
 
@@ -142,9 +141,34 @@ class NodeService(INodeService):
                           project_id: str,
                           target_node_id: str,
                           plugin_unique_id: str,
-                          index: Optional[int] = None) -> ToolResponse:
-        return ToolResponse("error", None,
-                            "Add plugin not implemented via service yet")
+                          index: Optional[int] = None,
+                          plugin_instance_id=None) -> ToolResponse:
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+
+        target_node = project.router.nodes.get(target_node_id)
+        if not target_node:
+            return ToolResponse(
+                "error", None,
+                f"Node '{target_node_id}' not found in project '{project_id}'."
+            )
+
+        try:
+            descriptor = self._manager.plugin_registry.find_by_id(
+                plugin_unique_id)
+            plugin = self._manager.node_factory.create_plugin_instance(
+                descriptor=descriptor, plugin_instance_id=plugin_instance_id)
+
+            plugin_info = target_node.mixer_channel.add_insert(plugin, index)
+            return ToolResponse(
+                "success", plugin_info if plugin_info else {},
+                f"Plugin '{plugin_unique_id}' added to node '{target_node_id}'."
+            )
+        except Exception as e:
+            return ToolResponse("error", None,
+                                f"Failed to add plugin: {str(e)}")
 
     @tool(category="plugin",
           description="Remove a plugin from a track",

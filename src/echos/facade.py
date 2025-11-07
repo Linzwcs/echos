@@ -2,7 +2,7 @@
 import inspect
 from typing import Dict, List, Any, Optional
 from .interfaces import IDAWManager, IService
-from .models import ToolResponse
+from .models import ToolResponse, PluginDescriptor
 
 
 class DAWFacade:
@@ -66,6 +66,9 @@ class DAWFacade:
 
             descriptions[name] = doc.split('\n')[0]
         return descriptions
+
+    def list_plugins(self) -> str:
+        return self._manager.plugin_registry.list_all()
 
     def get_available_methods(self) -> Dict[str, List[str]]:
 

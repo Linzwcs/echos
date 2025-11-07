@@ -3,10 +3,21 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .iproject import IProject
+from .ifactory import INodeFactory, IPluginRegistry
 from ...models.project_model import ProjectState
 
 
 class IDAWManager(ABC):
+
+    @property
+    @abstractmethod
+    def node_factory(self) -> INodeFactory:
+        pass
+
+    @property
+    @abstractmethod
+    def plugin_registry(self) -> IPluginRegistry:
+        pass
 
     @abstractmethod
     def create_project(

@@ -333,6 +333,7 @@ class AgentToolkit:
                     result = previous_results[index]
 
                     data = result
+
                     for part in parts[1:]:
                         if part:
                             data = getattr(data, part) if hasattr(

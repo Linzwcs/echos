@@ -1,12 +1,11 @@
 # flake8: noqa
 from .icommand import ICommand, ICommandManager
-from .idaw_manager import IDAWManager
+from .imanager import IDAWManager
 from .iengine import IEngine, IEngineController
 from .ievent_bus import IEventBus
 from .ifactory import IEngineFactory, INodeFactory
 from .ilifecycle import ILifecycleAware
-from .imixer import IMixerChannel
-from .inode import IPlugin, ITrack, INode
+from .inode import IPlugin, ITrack, INode, IMixerChannel
 from .iparameter import IParameter
 from .ipersistence import IProjectSerializer
 from .iproject import IProject
