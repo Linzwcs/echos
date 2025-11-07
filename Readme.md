@@ -149,6 +149,8 @@ Echos presents a unique opportunity to define the future of music production. We
 
 Whether you're defining the contract for a foundational component, crafting a clean, robust programmatic API, architecting a complex and scalable new feature, or pioneering research into autonomous agents and novel AI architectures for composition, your contribution is invaluable. Join us in building the core infrastructure that will power the next generation of musical creativity.
 
+To join us, please reach out to [zhilin.nlp@gmail.com](mailto:zhilin.nlp@gmail.com).
+
 ---
 
 ## 📄 License
