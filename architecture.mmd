@@ -1,0 +1,132 @@
+graph TB
+    subgraph "Client Layer"
+        WEB[Web UI<br/>React/Vue/Svelte]
+        DESKTOP[Desktop UI<br/>Electron/Tauri]
+        MOBILE[Mobile UI<br/>React Native]
+        AI_OPENAI[OpenAI<br/>Function Calling]
+        AI_CLAUDE[Anthropic<br/>Claude Tools]
+        AI_CUSTOM[Custom Agents<br/>Your Model]
+    end
+
+    subgraph "API Layer"
+        AGENT_TOOLKIT[Agent Toolkit<br/>Tool Registration & Execution]
+        FACADE[DAW Facade<br/>Unified API Entry Point]
+        
+        subgraph "Service APIs"
+            SVC_PROJECT[Project Service]
+            SVC_TRANSPORT[Transport Service]
+            SVC_NODE[Node Service]
+            SVC_EDITING[Editing Service]
+            SVC_ROUTING[Routing Service]
+            SVC_QUERY[Query Service]
+            SVC_HISTORY[History Service]
+            SVC_SYSTEM[System Service]
+        end
+    end
+
+    subgraph "Core Domain Model"
+        MANAGER[DAW Manager<br/>Orchestrator]
+        
+        subgraph "Project Context"
+            PROJECT[Project<br/>Container]
+            TIMELINE[Timeline<br/>Tempo & Time Signature]
+            ROUTER[Router<br/>Audio Graph DAG]
+            CMD_MGR[Command Manager<br/>Undo/Redo]
+            ENGINE_CTRL[Engine Controller<br/>Audio Lifecycle]
+        end
+        
+        subgraph "Audio Nodes"
+            TRACKS[Tracks<br/>Instrument/Audio/Bus]
+            MIXER[Mixer Channels<br/>Volume/Pan/FX]
+            PLUGINS[Plugins<br/>VST3/AU Instances]
+        end
+        
+        EVENT_BUS[Event Bus<br/>Pub/Sub Communication]
+    end
+
+    subgraph "Backend Abstraction"
+        SYNC[Sync Controller<br/>Domain → Backend Sync]
+        
+        subgraph "Engine Implementations"
+            ENGINE_MOCK[Mock Engine<br/>Testing]
+            ENGINE_PB[Pedalboard Engine<br/>Production]
+            ENGINE_OTHER[Other Engines<br/>Extensible...]
+        end
+        
+        PLUGIN_REGISTRY[Plugin Registry<br/>VST3/AU Discovery]
+    end
+
+    %% Client → API connections
+    WEB --> FACADE
+    DESKTOP --> FACADE
+    MOBILE --> FACADE
+    AI_OPENAI --> AGENT_TOOLKIT
+    AI_CLAUDE --> AGENT_TOOLKIT
+    AI_CUSTOM --> AGENT_TOOLKIT
+    
+    AGENT_TOOLKIT --> FACADE
+
+    %% API Layer internal
+    FACADE --> SVC_PROJECT
+    FACADE --> SVC_TRANSPORT
+    FACADE --> SVC_NODE
+    FACADE --> SVC_EDITING
+    FACADE --> SVC_ROUTING
+    FACADE --> SVC_QUERY
+    FACADE --> SVC_HISTORY
+    FACADE --> SVC_SYSTEM
+
+    %% Services → Core
+    SVC_PROJECT --> MANAGER
+    SVC_TRANSPORT --> MANAGER
+    SVC_NODE --> MANAGER
+    SVC_EDITING --> MANAGER
+    SVC_ROUTING --> MANAGER
+    SVC_QUERY --> MANAGER
+    SVC_HISTORY --> MANAGER
+    SVC_SYSTEM --> MANAGER
+
+    %% Core internal structure
+    MANAGER --> PROJECT
+    PROJECT --> TIMELINE
+    PROJECT --> ROUTER
+    PROJECT --> CMD_MGR
+    PROJECT --> ENGINE_CTRL
+    PROJECT --> EVENT_BUS
+    
+    ROUTER --> TRACKS
+    TRACKS --> MIXER
+    MIXER --> PLUGINS
+
+    %% Event flow
+    EVENT_BUS -.->|Domain Events| SYNC
+    TIMELINE -.->|Events| EVENT_BUS
+    ROUTER -.->|Events| EVENT_BUS
+    MIXER -.->|Events| EVENT_BUS
+    TRACKS -.->|Events| EVENT_BUS
+    PROJECT -.->|Events| EVENT_BUS
+
+    %% Backend connections
+    SYNC --> ENGINE_MOCK
+    SYNC --> ENGINE_PB
+    SYNC --> ENGINE_OTHER
+    
+    ENGINE_CTRL --> ENGINE_MOCK
+    ENGINE_CTRL --> ENGINE_PB
+    ENGINE_CTRL --> ENGINE_OTHER
+    
+    ENGINE_PB --> PLUGIN_REGISTRY
+    PLUGIN_REGISTRY -.->|Plugin Discovery| MANAGER
+
+    %% Styling
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,stroke-dasharray: 5 5
+    classDef api fill:#f3e5f5,stroke:#6a1b9a,stroke-width:3px
+    classDef core fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    classDef bus fill:#ffebee,stroke:#c62828,stroke-width:2px
+    
+    class WEB,DESKTOP,MOBILE client
+    class AI_OPENAI,AI_CLAUDE,AI_CUSTOM,AGENT_TOOLKIT,FACADE,SVC_PROJECT,SVC_TRANSPORT,SVC_NODE,SVC_EDITING,SVC_ROUTING,SVC_QUERY,SVC_HISTORY,SVC_SYSTEM api
+    class MANAGER,PROJECT,TIMELINE,ROUTER,CMD_MGR,ENGINE_CTRL,TRACKS,MIXER,PLUGINS core
+    class SYNC,ENGINE_MOCK,ENGINE_PB,ENGINE_OTHER,PLUGIN_REGISTRY backend
+    class EVENT_BUS bus
