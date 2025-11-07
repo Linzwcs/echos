@@ -147,7 +147,7 @@ Our journey is about progressively expanding the AI's capabilities across the en
 
 Echos presents a unique opportunity to define the future of music production. We are looking for passionate contributors to help us build out the AI's arsenal of creative tools. Every function you expose is a new power you grant to the autonomous producer.
 
-Whether you're mapping a simple mixer function, designing a clean system interface, architecting a complex new feature, or researching novel approaches to AI-driven composition, your contribution is critical. Join us in building the engine that will power the next generation of musical creativity.
+Whether you're defining the contract for a foundational component, crafting a clean, robust programmatic API, architecting a complex and scalable new feature, or pioneering research into autonomous agents and novel AI architectures for composition, your contribution is invaluable. Join us in building the core infrastructure that will power the next generation of musical creativity.
 
 ---
 
