@@ -125,8 +125,8 @@ Our journey is about progressively expanding the AI's capabilities across the en
 
 ### Phase 1: Core Capabilities (Current Focus)
 
-- ✅ Solidify the API for core project, track, and plugin management.
-- ✅ Improve VST3/AU hosting reliability.
+- 🔄 Solidify the API for core project, track, and plugin management.
+- 🔄 Improve VST3/AU hosting reliability.
 - 🔄 **Expand the Toolkit:** Add more essential tools for editing, mixing, and routing.
 
 ### Phase 2: Expanding the Creative Palette
