@@ -113,7 +113,7 @@ result = toolkit.execute("project.create_project", name="Pop Song")
 print(f"  ✓ {result.message}")
 ```
 
-For a detailed example of how to create a song, please refer to demo/song_create_demo.py.
+For a detailed example of how to create a song, please refer to `demo/song_create_demo.py`.
 
 **Notice**: Before creating a song, you need to install the required VST3 instrument plugins.
 
