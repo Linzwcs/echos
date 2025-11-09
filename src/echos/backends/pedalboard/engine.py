@@ -8,7 +8,7 @@ from .messages import BaseMessage, NonRealTimeMessage, RealTimeMessage, GraphMes
 from .timeline import RealTimeTimeline
 from .render_graph import PedalboardRenderGraph
 from .message_handler import process_message
-from .plugin import PedalboardPluginRegistry, PedalboardPluginInstanceManager
+from .plugin_ins_manager import PedalboardPluginInstanceManager
 from .context import AudioEngineContext
 from ..common.message_queue import RealTimeMessageQueue
 from ...interfaces.system import IEngine, IEngineTimeline
@@ -97,10 +97,6 @@ class PedalboardEngine(IEngine):
     def cpu_load(self) -> float:
         with self._stats_lock:
             return self._cpu_load
-
-    @property
-    def plugin_registry(self) -> PedalboardPluginRegistry:
-        return self._plugin_registry
 
     def post_command(self, msg: BaseMessage):
 

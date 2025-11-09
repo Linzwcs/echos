@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from .inode import ITrack
 from .iplugin import IPlugin
 from .iengine import IEngine
-from .iregistry import IPluginRegistry
+from .iplugin import IPluginRegistry
 from ...models import PluginDescriptor
 
 
@@ -39,7 +39,9 @@ class INodeFactory(ABC):
         pass
 
     @abstractmethod
-    def create_plugin_instance(self,
-                               descriptor: PluginDescriptor,
-                               plugin_instance_id: str = None) -> IPlugin:
+    def create_plugin_instance(
+        self,
+        descriptor: PluginDescriptor,
+        plugin_instance_id: str = None,
+    ) -> IPlugin:
         pass

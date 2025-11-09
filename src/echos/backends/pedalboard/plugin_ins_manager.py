@@ -1,6 +1,6 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 import pedalboard as pb
-from ....interfaces.system import IPluginRegistry, IPluginInstanceManager
+from ...interfaces.system import IPluginRegistry, IPluginInstanceManager
 
 
 class PedalboardPluginInstanceManager(IPluginInstanceManager):

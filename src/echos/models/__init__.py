@@ -34,7 +34,7 @@ from .parameter_model import (
     AutomationPoint,
     ParameterType,
 )
-from .plugin_model import CachedPluginInfo, PluginCategory, PluginDescriptor
+from .plugin_model import CachedPluginInfo, PluginCategory, PluginDescriptor, PluginScanResult
 from .router_model import Connection, Port, PortDirection, PortType
 from .timeline_model import Tempo, TimeSignature
 

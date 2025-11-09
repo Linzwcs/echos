@@ -1,7 +1,13 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Dict, Any, Optional
 from enum import Enum
-from .router_model import Port
+
+
+@dataclass
+class PluginScanResult:
+    success: bool
+    plugin_info: Optional[Dict] = None
+    error: Optional[str] = None
 
 
 class PluginCategory(Enum):
@@ -20,7 +26,7 @@ class PluginDescriptor:
     plugin_format: str
     reports_latency: bool = True
     latency_samples: int = 0
-    available_ports: List[Port] = field(default_factory=list)
+    #available_ports: List[Port] = field(default_factory=list)
     default_parameters: Dict[str, Any] = field(default_factory=dict)
 
 

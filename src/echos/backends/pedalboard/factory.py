@@ -1,5 +1,6 @@
 from .engine import PedalboardEngine
-from .plugin import PedalboardPluginRegistry, PedalboardPluginInstanceManager
+from .plugin_ins_manager import PedalboardPluginInstanceManager
+from ...core.plugin import PluginRegistry
 from ...interfaces.system.ifactory import INodeFactory
 from ...interfaces.system import IPlugin, ITrack, IEngine
 from ...models import PluginDescriptor
@@ -12,7 +13,7 @@ class PedalboardEngineFactory(IEngineFactory):
 
     def create_engine(
         self,
-        plugin_registry: PedalboardPluginRegistry,
+        plugin_registry: PluginRegistry,
         sample_rate: int = 48000,
         block_size: int = 512,
         output_channels: int = 2,

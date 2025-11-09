@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from echos.interfaces.system.ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
 from ...models import event_model
 
