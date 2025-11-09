@@ -3,8 +3,9 @@ import uuid
 from .parameter import Parameter
 from ..interfaces import IMixerChannel, IPlugin, IParameter, IEventBus
 from ..interfaces.system.ilifecycle import ILifecycleAware
-from ..interfaces.system.inode import IPlugin
+from ..interfaces.system.iplugin import IPlugin
 from ..models.mixer_model import Send
+from ..models.state_model import SendState, MixerState
 
 
 class MixerChannel(IMixerChannel):
@@ -88,7 +89,7 @@ class MixerChannel(IMixerChannel):
             self._event_bus.publish(
                 InsertAdded(
                     owner_node_id=self._channel_id,
-                    plugin_instance_id=plugin.node_id,
+                    plugin_instance_id=plugin.plugin_instance_id,
                     plugin_unique_id=plugin.descriptor.unique_plugin_id,
                     index=actual_index))
 
@@ -194,6 +195,58 @@ class MixerChannel(IMixerChannel):
                 "post_fader": send.is_post_fader
             } for send in self._sends]
         }
+
+    def to_state(self) -> MixerState:
+        sends_state = [
+            SendState(
+                send_id=s.send_id,
+                target_bus_node_id=s.target_bus_node_id,
+                level=s.level.to_state(),
+                is_post_fader=s.is_post_fader,
+                is_enabled=s.is_enabled,
+            ) for s in self._sends
+        ]
+        return MixerState(
+            channel_id=self._channel_id,
+            volume=self._volume.to_state(),
+            pan=self._pan.to_state(),
+            input_gain=self._input_gain.to_state(),
+            is_muted=self.is_muted,
+            is_solo=self.is_solo,
+            inserts=[p.to_state() for p in self._inserts],
+            sends=sends_state,
+        )
+
+    @classmethod
+    def from_state(cls, state: MixerState, **kwargs: Any) -> 'MixerChannel':
+        from .plugin import Plugin
+        channel = cls(channel_id=state.channel_id)
+        channel._volume = Parameter.from_state(state.volume,
+                                               owner_node_id=state.channel_id)
+        channel._pan = Parameter.from_state(state.pan,
+                                            owner_node_id=state.channel_id)
+        channel._input_gain = Parameter.from_state(
+            state.input_gain, owner_node_id=state.channel_id)
+        channel.is_muted = state.is_muted
+        channel.is_solo = state.is_solo
+
+        # Recreate inserts
+        channel._inserts = [
+            Plugin.from_state(p_state, **kwargs) for p_state in state.inserts
+        ]
+
+        # Recreate sends
+        channel._sends = [
+            Send(
+                send_id=s.send_id,
+                target_bus_node_id=s.target_bus_node_id,
+                level=Parameter.from_state(s.level,
+                                           owner_node_id=state.channel_id),
+                is_post_fader=s.is_post_fader,
+                is_enabled=s.is_enabled,
+            ) for s in state.sends
+        ]
+        return channel
 
     def _on_mount(self, event_bus: IEventBus):
         self._event_bus = event_bus

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from .inode import IPlugin, ITrack
+from .inode import ITrack
+from .iplugin import IPlugin
 from .iengine import IEngine
 from .iregistry import IPluginRegistry
 from ...models import PluginDescriptor

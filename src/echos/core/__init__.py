@@ -2,7 +2,7 @@ from .event_bus import EventBus
 from .history import BaseCommand, CommandManager, MacroCommand
 from .manager import DAWManager
 from .mixer import MixerChannel
-from .parameter import Parameter, ParameterGroup, VCAParameter
+from .parameter import Parameter
 from .persistence import ProjectSerializer
 from .plugin import Plugin, PluginCache
 from .project import Project
@@ -28,8 +28,6 @@ __all__ = [
     "EventBus",
     "MixerChannel",
     "Parameter",
-    "VCAParameter",
-    "ParameterGroup",
     "Plugin",
     "PluginCache",
     "ProjectSerializer",

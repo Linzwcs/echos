@@ -3,7 +3,7 @@ from typing import List, Optional, Dict
 import dataclasses
 from .mixer import MixerChannel
 from ..interfaces.system import ITrack
-from ..models.clip_model import AnyClip
+from ..models import AnyClip, TrackState
 from ..interfaces.system.ilifecycle import ILifecycleAware, IEventBus
 from ..interfaces.system.iparameter import IParameter
 
@@ -76,6 +76,23 @@ class Track(ITrack):
 
     def get_parameters(self) -> Dict[str, IParameter]:
         return self._mixer_channel.get_parameters()
+
+    def to_state(self) -> TrackState:
+        return TrackState(
+            node_id=self._node_id,
+            node_type=self.node_type,
+            name=self._name,
+            clips=self.clips,
+            mixer_state=self.mixer_channel.to_state(),
+        )
+
+    @classmethod
+    def from_state(cls, state: TrackState, **kwargs) -> 'Track':
+        track = cls(name=state.name, node_id=state.node_id)
+        track._clips = {c.clip_id: c for c in state.clips}
+        track._mixer_channel = MixerChannel.from_state(state.mixer_state,
+                                                       **kwargs)
+        return track
 
     def to_dict(self) -> dict:
 

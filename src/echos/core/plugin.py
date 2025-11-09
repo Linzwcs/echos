@@ -3,10 +3,13 @@ import uuid
 from pathlib import Path
 import json
 from dataclasses import asdict
+
+from echos.interfaces.system import IPluginRegistry
 from .parameter import Parameter
 from ..interfaces.system import IPlugin, IParameter, IEventBus, IPluginCache
 from ..models import PluginDescriptor, Port, CachedPluginInfo, PluginDescriptor
 from ..models.event_model import PluginEnabledChanged
+from ..models.state_model import PluginState
 
 
 class Plugin(IPlugin):
@@ -14,16 +17,16 @@ class Plugin(IPlugin):
     def __init__(self,
                  descriptor: PluginDescriptor,
                  event_bus: IEventBus,
-                 node_id: Optional[str] = None):
+                 plugin_instance_id: Optional[str] = None):
         super().__init__()
-        self._node_id = node_id or f"plugin_{uuid.uuid4()}"
+        self._plugin_instance_id = plugin_instance_id or f"plugin_{uuid.uuid4()}"
         self._descriptor = descriptor
         self._event_bus = event_bus
         self._is_enabled = True
         self._parameters: Dict[str, IParameter] = {
             name:
             Parameter(
-                owner_node_id=self._node_id,
+                owner_node_id=self._plugin_instance_id,
                 name=name,
                 default_value=default_value,
             )
@@ -35,8 +38,8 @@ class Plugin(IPlugin):
         return self._descriptor
 
     @property
-    def node_id(self) -> str:
-        return self._node_id
+    def plugin_instance_id(self) -> str:
+        return self._plugin_instance_id
 
     @property
     def node_type(self) -> str:
@@ -86,6 +89,41 @@ class Plugin(IPlugin):
 
             raise KeyError(
                 f"Plugin '{self.node_id}' has no parameter named '{name}'")
+
+    def to_state(self) -> PluginState:
+        return PluginState(instance_id=self._node_id,
+                           unique_plugin_id=self.descriptor.unique_plugin_id,
+                           is_enabled=self._is_enabled,
+                           parameters={
+                               name: param.to_state()
+                               for name, param in self._parameters.items()
+                           })
+
+    @classmethod
+    def from_state(cls, state: PluginState,
+                   registry: IPluginRegistry) -> 'Plugin':
+
+        if not registry:
+            raise ValueError("Plugin.from_state requires a 'plugin_registry'")
+
+        descriptor = registry.find_by_id(state.unique_plugin_id)
+        if not descriptor:
+            raise ValueError(
+                f"Plugin descriptor '{state.unique_plugin_id}' not found")
+
+        plugin = cls(descriptor=descriptor,
+                     event_bus=None,
+                     node_id=state.instance_id)
+        plugin._is_enabled = state.is_enabled
+
+        # Restore parameter values
+        for param_name, param_state in state.parameters.items():
+            if param_name in plugin._parameters:
+                plugin._parameters[param_name]._base_value = param_state.value
+                plugin._parameters[
+                    param_name]._automation_lane = param_state.automation_lane
+
+        return plugin
 
     def to_dict(self) -> Dict[str, Any]:
 

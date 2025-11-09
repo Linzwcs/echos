@@ -1,16 +1,10 @@
-# file: src/MuzaiCore/models/event_model.py
-"""
-Defines all domain events that can be published within the core.
-These are public data structures, part of the application's shared language.
-All events inherit from a common BaseEvent.
-"""
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, List
 
 from .clip_model import Note, AnyClip
-from .routing_model import Connection
+from .router_model import Connection
 from .mixer_model import Send
 from .timeline_model import Tempo, TimeSignature, TimelineState
 

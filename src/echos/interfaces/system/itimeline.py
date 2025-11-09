@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from .ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
+from .iserializable import ISerializable
 from ...models.timeline_model import Tempo, TimeSignature, TimelineState
 
 
@@ -46,6 +47,7 @@ class IMusicalTimeConverter(ABC):
 
 class IDomainTimeline(
         ILifecycleAware,
+        ISerializable,
         IReadonlyTimeline,
         IMusicalTimeConverter,
         IWritableTimeline,
@@ -83,18 +85,10 @@ class IDomainTimeline(
     ):
         pass
 
-    def _on_mount(self, event_bus: IEventBus):
-        self._event_bus = event_bus
-
-    def _on_unmount(self):
-        self._event_bus = None
-
-    def _get_children(self) -> List[ILifecycleAware]:
-        return []
-
 
 class IEngineTimeline(
         IReadonlyTimeline,
         IWritableTimeline,
+        ABC,
 ):
     pass

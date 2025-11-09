@@ -5,7 +5,9 @@ from .iengine import IEngine, IEngineController
 from .ievent_bus import IEventBus
 from .ifactory import IEngineFactory, INodeFactory
 from .ilifecycle import ILifecycleAware
-from .inode import IPlugin, ITrack, INode, IMixerChannel
+from .inode import ITrack, INode, IMixerChannel
+from .imixer import IMixerChannel
+from .iplugin import IPlugin
 from .iparameter import IParameter
 from .ipersistence import IProjectSerializer
 from .iproject import IProject

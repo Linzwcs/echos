@@ -3,10 +3,15 @@ from typing import List
 from .inode import ITrack
 from .ilifecycle import ILifecycleAware
 from .ievent_bus import IEventBus
+from .iserializable import ISerializable
 from ...models import Port, Connection
 
 
-class IRouter(ILifecycleAware, ABC):
+class IRouter(
+        ILifecycleAware,
+        ISerializable,
+        ABC,
+):
 
     @property
     def nodes(self) -> dict[str, ITrack]:

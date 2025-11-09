@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, List, Tuple
+from typing import Any, Optional, List, Tuple
 from .router import Router
 from .timeline import Timeline
 from .history.command_manager import CommandManager
@@ -7,6 +7,7 @@ from .event_bus import EventBus
 from .parameter import Parameter
 from .engine_controller import EngineController
 from ..interfaces.system import IProject
+from ..models.state_model import ProjectState
 
 
 class Project(IProject):
@@ -109,6 +110,21 @@ class Project(IProject):
             "has_cycle": self._router.has_cycle(),
             "has_audio_engine": self._audio_engine is not None,
         }
+
+    def to_state(self) -> ProjectState:
+        return ProjectState(
+            project_id=self._project_id,
+            name=self._name,
+            sample_rate=self.sample_rate,
+            block_size=self.block_size,
+            output_channels=self.output_channels,
+            router=self.router.to_state(),
+            timeline=self.timeline.timeline_state,
+        )
+
+    @classmethod
+    def from_state(cls, state: ProjectState, **kwargs: Any) -> 'Project':
+        pass
 
     def _on_mount(self, event_bus: EventBus = None):
         self._event_bus = self._event_bus_instance

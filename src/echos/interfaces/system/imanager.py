@@ -4,7 +4,7 @@ from typing import Optional
 
 from .iproject import IProject
 from .ifactory import INodeFactory, IPluginRegistry
-from ...models.project_model import ProjectState
+from ...models.state_model import ProjectState
 
 
 class IDAWManager(ABC):

@@ -1,8 +1,7 @@
-# file: src/MuzaiCore/models/plugin_model.py
 from dataclasses import dataclass, field
 from typing import List, Dict, Any
 from enum import Enum
-from .routing_model import Port
+from .router_model import Port
 
 
 class PluginCategory(Enum):
@@ -29,4 +28,3 @@ class PluginDescriptor:
 class CachedPluginInfo:
     descriptor: PluginDescriptor
     file_mod_time: float
-    #file_size: int

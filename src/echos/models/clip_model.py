@@ -1,4 +1,3 @@
-# file: src/MuzaiCore/models/clip_model.py
 from dataclasses import dataclass, field
 from typing import Set, Union
 import uuid
@@ -20,7 +19,6 @@ class Clip:
     start_beat: float
     duration_beats: float
     clip_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-
     name: str = "clip"
     is_looped: bool = False
     loop_start_beat: float = 0.0
