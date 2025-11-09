@@ -5,9 +5,10 @@ import time
 
 from ..models.parameter_model import AutomationPoint, AutomationLane, AutomationCurveType
 from ..models.engine_model import TransportContext
-from ..models.event_model import ParameterChanged
-from ..interfaces.system import IParameter, ICommand, IEventBus
+
+from ..interfaces.system import IParameter, IEventBus
 from ..interfaces.system.ilifecycle import ILifecycleAware
+from ..models.state_model import ParameterState
 
 
 class ParameterBatchUpdater:
@@ -207,6 +208,32 @@ class Parameter(IParameter):
     def reset_to_default(self):
         self.set_value(self._default_value, immediate=True)
 
+    def to_state(self) -> ParameterState:
+        return ParameterState(
+            name=self._name,
+            value=self._base_value,
+            default_value=self._default_value,
+            min_value=self._min_value,
+            max_value=self._max_value,
+            unit=self._unit,
+            automation_lane=self._automation_lane,
+        )
+
+    @classmethod
+    def from_state(cls, state: ParameterState, **kwargs: Any) -> 'Parameter':
+        owner_node_id = kwargs.get("owner_node_id", "unknown")
+        param = cls(
+            owner_node_id=owner_node_id,
+            name=state.name,
+            default_value=state.default_value,
+            min_value=state.min_value,
+            max_value=state.max_value,
+            unit=state.unit,
+        )
+        param._base_value = state.value
+        param._automation_lane = state.automation_lane
+        return param
+
     def _clamp(self, value: Any) -> Any:
         if self._min_value is not None and value < self._min_value:
             return self._min_value
@@ -259,50 +286,3 @@ class Parameter(IParameter):
 
     def __repr__(self) -> str:
         return f"Parameter(name='{self._name}', value={self._base_value}, min value={self._min_value}), max value={self._max_value}"
-
-
-class VCAParameter(Parameter):
-
-    def __init__(self,
-                 owner_node_id: str,
-                 name: str,
-                 default_value,
-                 event_bus: Optional[IEventBus] = None,
-                 min_value=None,
-                 max_value=None):
-        super().__init__(owner_node_id=owner_node_id,
-                         name=name,
-                         default_value=default_value,
-                         event_bus=event_bus,
-                         min_value=min_value,
-                         max_value=max_value)
-
-
-class ParameterGroup:
-
-    def __init__(self, name: str):
-        self.name = name
-        self._parameters: List[Parameter] = []
-        self._subgroups: List['ParameterGroup'] = []
-
-    def add_parameter(self, param: Parameter):
-        self._parameters.append(param)
-
-    def add_subgroup(self, group: 'ParameterGroup'):
-        self._subgroups.append(group)
-
-    def get_all_parameters(self) -> List[Parameter]:
-        params = self._parameters.copy()
-        for subgroup in self._subgroups:
-            params.extend(subgroup.get_all_parameters())
-        return params
-
-    def find_parameter(self, name: str) -> Optional[Parameter]:
-        for param in self._parameters:
-            if param.name == name:
-                return param
-        for subgroup in self._subgroups:
-            result = subgroup.find_parameter(name)
-            if result:
-                return result
-        return None

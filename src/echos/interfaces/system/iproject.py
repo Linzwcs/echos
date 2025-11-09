@@ -6,9 +6,14 @@ from .icommand import ICommandManager
 from .ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
 from .iengine import IEngineController
+from .iserializable import ISerializable
 
 
-class IProject(ILifecycleAware, ABC):
+class IProject(
+        ILifecycleAware,
+        ISerializable,
+        ABC,
+):
 
     @property
     @abstractmethod

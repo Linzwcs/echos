@@ -1,6 +1,6 @@
 from typing import List, Tuple
 import bisect
-import math
+from .event_bus import EventBus
 from ..interfaces.system import IDomainTimeline
 from ..models.timeline_model import Tempo, TimeSignature, TimelineState
 
@@ -8,14 +8,13 @@ from ..models.timeline_model import Tempo, TimeSignature, TimelineState
 class Timeline(IDomainTimeline):
 
     def __init__(self,
-                 tempo: float = 120.0,
-                 time_signature: Tuple[int, int] = (4, 4)):
+                 tempos: list[Tempo] = None,
+                 time_signatures: list[TimeSignature] = None):
+
         super().__init__()
-        self._tempos: List[Tempo] = [Tempo(beat=0.0, bpm=tempo)]
-        self._time_signatures: List[TimeSignature] = [
-            TimeSignature(beat=0.0,
-                          numerator=time_signature[0],
-                          denominator=time_signature[1])
+        self._tempos: List[Tempo] = tempos or [Tempo(beat=0.0, bpm=120.0)]
+        self._time_signatures: List[TimeSignature] = time_signatures or [
+            TimeSignature(beat=0.0, numerator=4, denominator=4)
         ]
 
     @property
@@ -183,6 +182,14 @@ class Timeline(IDomainTimeline):
 
         return self._time_signatures[idx - 1]
 
+    def to_state(self):
+        return self.timeline_state
+
+    @classmethod
+    def from_state(cls, state: TimelineState, **kwargs) -> 'Timeline':
+        return Timeline(tempos=state.tempos,
+                        time_signatures=state.time_signatures)
+
     def _sync_timeline_state(self):
         if self.is_mounted:
             from ..models.event_model import TimelineStateChanged
@@ -205,3 +212,12 @@ class Timeline(IDomainTimeline):
                                                                      1].beat
                for i in range(len(state.time_signatures) - 1)):
             raise ValueError("Time signatures list must be sorted by beat.")
+
+    def _on_mount(self, event_bus: EventBus):
+        self._event_bus = event_bus
+
+    def _on_unmount(self):
+        self._event_bus = None
+
+    def _get_children(self):
+        return []

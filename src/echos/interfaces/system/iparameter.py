@@ -2,7 +2,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 from .ilifecycle import ILifecycleAware
-from .ievent_bus import IEventBus
 from ...models.parameter_model import AutomationLane
 from ...models.engine_model import TransportContext
 

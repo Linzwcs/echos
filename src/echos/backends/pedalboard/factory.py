@@ -47,4 +47,4 @@ class PedalboardNodeFactory(INodeFactory):
                                plugin_instance_id: str) -> IPlugin:
         return Plugin(descriptor=descriptor,
                       event_bus=None,
-                      node_id=plugin_instance_id)
+                      plugin_instance_id=plugin_instance_id)
