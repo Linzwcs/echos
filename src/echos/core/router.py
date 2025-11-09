@@ -2,7 +2,7 @@ from typing import List, Dict, Optional
 import networkx as nx
 
 from ..interfaces.system import IRouter, IPlugin, IEventBus, INode
-from ..models.router_model import Port, Connection
+from ..models.router_model import Port, Connection, PortDirection
 from ..interfaces.system.ilifecycle import ILifecycleAware
 from ..models.state_model import RouterState
 
@@ -70,69 +70,84 @@ class Router(IRouter):
 
         return list(self._nodes.values())
 
-    def connect(self, source_port: Port, dest_port: Port) -> bool:
+    def connect(self,
+                source_node_id: str,
+                dest_node_id: str,
+                source_port_id: str = "main_out",
+                dest_port_id: str = "main_in") -> bool:
 
-        if source_port.owner_node_id not in self._nodes:
+        source_node = self.get_node_by_id(source_node_id)
+        dest_node = self.get_node_by_id(dest_node_id)
+        if not source_node or not dest_node:
+            print(f"Router: Source or destination node not found.")
+            return False
+
+        source_port: Optional[Port] = source_node.get_port_by_id(
+            source_port_id)
+        dest_port: Optional[Port] = dest_node.get_port_by_id(dest_port_id)
+        if not source_port or not dest_port:
             print(
-                f"Router: Source node {source_port.owner_node_id[:8]} not found"
+                f"Router: Source or destination port not found on the respective nodes."
             )
             return False
 
-        if dest_port.owner_node_id not in self._nodes:
-            print(f"Router: Dest node {dest_port.owner_node_id[:8]} not found")
-            return False
-
-        from ..models import PortDirection
-        if dest_port.direction != PortDirection.INPUT:
-            print("Router: Destination must be an INPUT port")
-            return False
-
-        if any(c.source_port == source_port and c.dest_port == dest_port
-               for c in self._connections):
-            print("Router: Connection already exists")
+        if source_port.direction != PortDirection.OUTPUT or dest_port.direction != PortDirection.INPUT:
+            print(
+                f"Router: Port direction mismatch (must be OUTPUT -> INPUT).")
             return False
 
         if source_port.port_type != dest_port.port_type:
             print(
-                f"Router: Port type mismatch: {source_port.port_type} -> {dest_port.port_type}"
+                f"Router: Port type mismatch ({source_port.port_type} -> {dest_port.port_type})."
             )
             return False
 
-        self._graph.add_edge(source_port.owner_node_id,
-                             dest_port.owner_node_id)
-        connection = Connection(source_port, dest_port)
-        self._connections.append(connection)
+        new_connection = Connection(source_node_id, dest_node_id,
+                                    source_port_id, dest_port_id)
+
+        if new_connection in self._connections:
+            print("Router: Connection already exists.")
+            return False
+
+        if self._would_create_cycle(source_node_id, dest_node_id):
+            print(
+                f"Router: Connection from {source_node_id[:6]} to {dest_node_id[:6]} would create a cycle."
+            )
+            return False
+
+        self._graph.add_edge(source_node_id, dest_node_id)
+        self._connections.append(new_connection)
 
         if self.is_mounted:
             from ..models.event_model import ConnectionAdded
-            self._event_bus.publish(ConnectionAdded(connection=connection))
+            self._event_bus.publish(ConnectionAdded(connection=new_connection))
 
         return True
 
-    def disconnect(self, source_port: Port, dest_port: Port) -> bool:
+    def disconnect(self,
+                   source_node_id: str,
+                   dest_node_id: str,
+                   source_port_id: str = "main_out",
+                   dest_port_id: str = "main_in") -> bool:
 
-        connection = next(
-            (c for c in self._connections
-             if c.source_port == source_port and c.dest_port == dest_port),
-            None)
+        connection_to_remove = Connection(source_node_id, dest_node_id,
+                                          source_port_id, dest_port_id)
 
-        if not connection:
+        if connection_to_remove not in self._connections:
             return False
 
-        self._connections.remove(connection)
+        self._connections.remove(connection_to_remove)
 
-        src_id = source_port.owner_node_id
-        dest_id = dest_port.owner_node_id
-
-        if not any(c.source_port.owner_node_id == src_id
-                   and c.dest_port.owner_node_id == dest_id
+        if not any(c.source_node_id == source_node_id
+                   and c.dest_node_id == dest_node_id
                    for c in self._connections):
-            if self._graph.has_edge(src_id, dest_id):
-                self._graph.remove_edge(src_id, dest_id)
+            if self._graph.has_edge(source_node_id, dest_node_id):
+                self._graph.remove_edge(source_node_id, dest_node_id)
 
         if self.is_mounted:
             from ..models.event_model import ConnectionRemoved
-            self._event_bus.publish(ConnectionRemoved(connection=connection))
+            self._event_bus.publish(
+                ConnectionRemoved(connection=connection_to_remove))
 
         return True
 
@@ -178,7 +193,7 @@ class Router(IRouter):
     def to_state(self) -> RouterState:
         return RouterState(
             nodes=[node.to_state() for node in self._nodes.values()],
-            connections=self._connections,
+            connections=self._connections[:],
         )
 
     @classmethod

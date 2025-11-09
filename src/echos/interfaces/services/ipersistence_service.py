@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-from ...models import ProjectState
+from ...models.state_model import ProjectState
 
 
 class IPersistenceService(ABC):

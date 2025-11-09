@@ -21,14 +21,10 @@ class MixerChannel(IMixerChannel):
         self._input_gain = Parameter(self._channel_id, "input_gain", 0.0,
                                      -100.0, 12.0, "dB")
 
-        # 状态
         self.is_muted = False
         self.is_solo = False
 
-        # 插件链
         self._inserts: List[IPlugin] = []
-
-        # 发送
         self._sends: List[Send] = []
 
     @property

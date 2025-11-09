@@ -2,8 +2,9 @@ from typing import Optional, Dict, List, cast
 from ..interfaces.system import (IProject, INode, IPlugin, ITrack,
                                  INodeFactory, IProjectSerializer,
                                  IPluginRegistry, IEventBus)
-from ..models import (ProjectState, TrackState, PluginState, ParameterState,
-                      NodeState, AnyClip)
+from ..models.state_model import (ProjectState, TrackState, PluginState,
+                                  ParameterState, NodeState)
+from ..models import Connection
 from ..core.timeline import Timeline
 from ..core.project import Project
 from ..core.track import Track

@@ -2,7 +2,8 @@ from typing import List, Tuple
 import bisect
 from .event_bus import EventBus
 from ..interfaces.system import IDomainTimeline
-from ..models.timeline_model import Tempo, TimeSignature, TimelineState
+from ..models import Tempo, TimeSignature
+from ..models.state_model import TimelineState
 
 
 class Timeline(IDomainTimeline):

@@ -1,6 +1,5 @@
-# file: src/MuzaiCore/models/parameter_model.py
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import List
 from enum import Enum
 
 

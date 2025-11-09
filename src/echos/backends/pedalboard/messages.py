@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Tuple, Union, Any
 
-from ...models import Note, AnyClip, PluginDescriptor, TimelineState
+from ...models import Note, AnyClip, PluginDescriptor
+from ...models.state_model import TimelineState
 
 
 @dataclass(frozen=True)
