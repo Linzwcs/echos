@@ -6,7 +6,8 @@ from typing import Any, List
 from .clip_model import Note, AnyClip
 from .router_model import Connection
 from .mixer_model import Send
-from .timeline_model import Tempo, TimeSignature, TimelineState
+from .timeline_model import Tempo, TimeSignature
+from .state_model import TimelineState
 
 
 @dataclass

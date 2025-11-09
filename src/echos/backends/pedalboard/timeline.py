@@ -2,7 +2,8 @@ from typing import List, Tuple
 import bisect
 import math
 from ...interfaces.system import IEngineTimeline, IDomainTimeline
-from ...models import Tempo, TimeSignature, TimelineState
+from ...models import Tempo, TimeSignature
+from ...models.state_model import TimelineState
 
 
 class RealTimeTimeline(IEngineTimeline):

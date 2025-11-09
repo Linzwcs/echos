@@ -3,7 +3,8 @@ from typing import List
 from .ievent_bus import IEventBus
 from .ilifecycle import ILifecycleAware
 from .iserializable import ISerializable
-from ...models.timeline_model import Tempo, TimeSignature, TimelineState
+from ...models.timeline_model import Tempo, TimeSignature
+from ...models.state_model import TimelineState
 
 
 class IReadonlyTimeline(ABC):

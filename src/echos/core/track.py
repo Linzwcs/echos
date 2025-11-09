@@ -3,7 +3,8 @@ from typing import List, Optional, Dict
 import dataclasses
 from .mixer import MixerChannel
 from ..interfaces.system import ITrack
-from ..models import AnyClip, TrackState
+from ..models import AnyClip, PortType, PortDirection, Port
+from ..models.state_model import TrackState
 from ..interfaces.system.ilifecycle import ILifecycleAware, IEventBus
 from ..interfaces.system.iparameter import IParameter
 
@@ -18,6 +19,18 @@ class Track(ITrack):
         self._mixer_channel = MixerChannel(self._node_id)
         self._color: Optional[str] = None
         self._icon: Optional[str] = None
+        self._ports: dict[str, Port] = {
+            "main_in":
+            Port(port_id="main_in",
+                 port_type=PortType.AUDIO,
+                 direction=PortDirection.INPUT,
+                 channels=2),
+            "main_out":
+            Port(port_id="main_out",
+                 port_type=PortType.AUDIO,
+                 direction=PortDirection.OUTPUT,
+                 channels=2)
+        }
 
     @property
     def node_id(self) -> str:
@@ -103,6 +116,12 @@ class Track(ITrack):
             "clips": [dataclasses.asdict(c) for c in self.clips],
             "mixer_channel": self._mixer_channel.to_dict()
         }
+
+    def get_ports(self) -> dict[str, Port]:
+        return self._ports
+
+    def get_port_by_id(self, port_id: str) -> Optional[Port]:
+        return self._ports.get(port_id, None)
 
     def _on_mount(self, event_bus: IEventBus):
         self._event_bus = event_bus

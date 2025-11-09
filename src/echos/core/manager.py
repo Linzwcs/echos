@@ -7,7 +7,7 @@ from ..interfaces import (
     IPluginRegistry,
 )
 from ..interfaces.system.ifactory import IEngineFactory, INodeFactory
-from ..models import ProjectState
+from ..models.state_model import ProjectState
 
 
 class DAWManager(IDAWManager):
