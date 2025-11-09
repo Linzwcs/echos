@@ -9,9 +9,9 @@ from echos.core import DAWManager
 from echos.backends.pedalboard import (
     PedalboardEngineFactory,
     PedalboardNodeFactory,
-    PedalboardPluginRegistry,
 )
-from echos.core.plugin import PluginCache
+from echos.backends.pedalboard.plugin_ins_manager import PedalboardPluginInstanceManager
+from echos.core.plugin import PluginCache, PluginScanner, PluginRegistry
 from echos.core.persistence import ProjectSerializer
 from echos.facade import DAWFacade
 from echos.services import *
@@ -138,16 +138,25 @@ def initialize_daw_system():
     print("Initializing DAW system...")
     print("=" * 70)
 
-    plugin_cache = PluginCache()
-    plugin_registry = PedalboardPluginRegistry(plugin_cache)
+    scanner = PluginScanner(Path("./src/echos/utils/scan_worker.py"),
+                            timeout=15)
+    cache = PluginCache(cache_file_path="./tmp.json")
+
+    registry = PluginRegistry(scanner=scanner, cache=cache)
+
+    registry.load()
+
+    print(f"Initial plugins available from cache: {len(registry.list_all())}")
+
+    print("\n>>> APP LOGIC: Requesting a registry update (a slow operation).")
+    registry.update()
     engine_factory = PedalboardEngineFactory()
     node_factory = PedalboardNodeFactory()
-    serializer = ProjectSerializer(node_factory, plugin_registry)
-    plugin_registry.load()
+    serializer = ProjectSerializer(node_factory, registry)
 
     manager = DAWManager(
         serializer,
-        plugin_registry,
+        registry,
         engine_factory,
         node_factory,
     )
