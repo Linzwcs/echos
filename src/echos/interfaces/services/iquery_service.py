@@ -1,6 +1,4 @@
-# file: src/MuzaiCore/services/IQueryService.py
-from abc import ABC, abstractmethod
-from typing import Optional
+from abc import abstractmethod
 from echos.models import ToolResponse
 from .ibase_service import IService
 

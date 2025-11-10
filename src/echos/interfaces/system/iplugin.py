@@ -4,7 +4,7 @@ from pathlib import Path
 from .ilifecycle import ILifecycleAware
 from .iparameter import IParameter
 from .iserializable import ISerializable
-from ...models import PluginDescriptor, CachedPluginInfo
+from ...models import PluginDescriptor, CachedPluginInfo, PluginScanResult
 
 
 class IPlugin(
@@ -30,14 +30,6 @@ class IPlugin(
 
     @abstractmethod
     def get_parameters(self) -> Dict[str, IParameter]:
-        pass
-
-    @abstractmethod
-    def to_state(self) -> Dict[str, Any]:
-        pass
-
-    @abstractmethod
-    def to_dict(self) -> Dict[str, Any]:
         pass
 
 
@@ -75,7 +67,15 @@ class IPluginRegistry(ABC):
         pass
 
     @abstractmethod
-    def load(self) -> None:
+    def load(self):
+        pass
+
+    @abstractmethod
+    def update(self, force_rescan: bool = False):
+        pass
+
+    @abstractmethod
+    def clear(self):
         pass
 
     @abstractmethod
@@ -121,17 +121,13 @@ class IPluginInstanceManager(ABC):
 class IPluginScanner(ABC):
 
     @abstractmethod
-    def start_scan(self):
+    def scan_plugin_paths(self, paths: List[Path]) -> List[Path]:
         pass
 
     @abstractmethod
-    def is_scanning(self) -> bool:
+    def scan_plugin_safe(self, plugin_path: Path) -> PluginScanResult:
         pass
 
     @abstractmethod
-    def get_results(self) -> Optional[List[PluginDescriptor]]:
-        pass
-
-    @abstractmethod
-    def terminate(self):
+    def get_default_search_paths(self) -> List[Path]:
         pass

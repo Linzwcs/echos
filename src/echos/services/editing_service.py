@@ -1,11 +1,7 @@
-# file: src/MuzaiCore/services/editing_service.py
 from typing import Any, List, Dict
 from ..agent.tools import tool
 from ..interfaces import IDAWManager, IEditingService, ITrack
-from ..models import ToolResponse, Note, MIDIClip
-from ..core.history.commands.editing_commands import (SetParameterCommand,
-                                                      CreateMidiClipCommand,
-                                                      AddNotesToClipCommand)
+from ..models import ToolResponse, MIDIClip
 
 
 class EditingService(IEditingService):
@@ -38,7 +34,6 @@ class EditingService(IEditingService):
         if not node:
             return ToolResponse("error", None, f"Node '{node_id}' not found.")
 
-        # Get parameters
         params = {}
         if hasattr(node, 'get_parameters'):
             params = node.get_parameters()
@@ -100,21 +95,16 @@ class EditingService(IEditingService):
 
         node = project.router.nodes.get(track_id)
         from echos.interfaces import ITrack
-
         if not isinstance(node, ITrack):
-
             return ToolResponse("error", None,
                                 f"Node '{track_id}' is not a valid track.")
-
         from echos.core.history.commands.editing_commands import CreateMidiClipCommand
         command = CreateMidiClipCommand(node,
                                         start_beat,
                                         duration_beats,
                                         name,
                                         clip_id=clip_id)
-
         project.command_manager.execute_command(command)
-
         if command.is_executed:
             clip = command._created_clip
             return ToolResponse("success", {
@@ -187,5 +177,85 @@ class EditingService(IEditingService):
             return ToolResponse("success", {
                 "clip_id": clip_id,
                 "notes_added": len(notes_to_add)
+            }, command.description)
+        return ToolResponse("error", None, command.error)
+
+    @tool(
+        category="editing",
+        description="Remove a clip from a track.",
+        returns="Confirmation of clip removal.",
+        examples=[
+            "editing.remove_clip(project_id='...', track_id='...', clip_id='...')"
+        ])
+    def remove_clip(self, project_id: str, track_id: str,
+                    clip_id: str) -> ToolResponse:
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+
+        track = project.router.nodes.get(track_id)
+        if not isinstance(track, ITrack):
+            return ToolResponse("error", None,
+                                f"Track '{track_id}' not found.")
+        from echos.core.history.commands.editing_commands import RemoveClipCommand
+        command = RemoveClipCommand(track, clip_id)
+        project.command_manager.execute_command(command)
+
+        if command.is_executed:
+            return ToolResponse("success", {
+                "track_id": track_id,
+                "removed_clip_id": clip_id
+            }, command.description)
+        return ToolResponse("error", None, command.error)
+
+    @tool(
+        category="editing",
+        description="Remove MIDI notes from a clip by their unique IDs.",
+        returns="Number of notes removed.",
+        examples=[
+            "editing.remove_notes_from_clip(project_id='...', track_id='...', clip_id='...', note_ids=['...', '...'])"
+        ])
+    def remove_notes_from_clip(self, project_id: str, track_id: str,
+                               clip_id: str,
+                               note_ids: List[str]) -> ToolResponse:
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+
+        track = project.router.nodes.get(track_id)
+        if not isinstance(track, ITrack):
+            return ToolResponse("error", None,
+                                f"Track '{track_id}' not found.")
+
+        target_clip = next((c for c in track.clips if c.clip_id == clip_id),
+                           None)
+        if not target_clip:
+            return ToolResponse(
+                "error", None,
+                f"Clip '{clip_id}' not found on track '{track_id}'.")
+
+        if not isinstance(target_clip, MIDIClip):
+            return ToolResponse("error", None,
+                                f"Clip '{clip_id}' is not a MIDI clip.")
+
+        notes_to_remove = [
+            n for n in target_clip.notes if n.note_id in note_ids
+        ]
+        if len(notes_to_remove) != len(note_ids):
+            found_ids = {n.note_id for n in notes_to_remove}
+            missing_ids = [nid for nid in note_ids if nid not in found_ids]
+            return ToolResponse(
+                "error", None, f"Some notes not found in clip: {missing_ids}")
+
+        from echos.core.history.commands.editing_commands import RemoveNotesFromClipCommand
+        command = RemoveNotesFromClipCommand(target_clip, notes_to_remove)
+        project.command_manager.execute_command(command)
+
+        if command.is_executed:
+            return ToolResponse("success", {
+                "clip_id": clip_id,
+                "notes_removed": len(notes_to_remove)
             }, command.description)
         return ToolResponse("error", None, command.error)

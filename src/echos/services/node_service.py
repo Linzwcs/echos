@@ -130,7 +130,6 @@ class NodeService(INodeService):
           returns="Renamed track information")
     def rename_node(self, project_id: str, node_id: str,
                     new_name: str) -> ToolResponse:
-
         return ToolResponse("error", None,
                             "Rename not implemented via service yet")
 

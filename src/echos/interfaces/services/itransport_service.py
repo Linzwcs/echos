@@ -1,5 +1,4 @@
-# file: src/MuzaiCore/services/ITransportService.py
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from echos.models import ToolResponse
 from .ibase_service import IService
 
@@ -23,8 +22,12 @@ class ITransportService(IService):
         pass
 
     @abstractmethod
-    def set_time_signature(self, project_id: str, numerator: int,
-                           denominator: int) -> ToolResponse:
+    def set_time_signature(
+        self,
+        project_id: str,
+        numerator: int,
+        denominator: int,
+    ) -> ToolResponse:
         pass
 
     @abstractmethod

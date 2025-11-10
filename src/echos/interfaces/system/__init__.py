@@ -6,7 +6,7 @@ from .ifactory import IEngineFactory, INodeFactory
 from .ilifecycle import ILifecycleAware
 from .inode import ITrack, INode, IMixerChannel
 from .imixer import IMixerChannel
-from .iplugin import IPlugin, IPluginCache, IPluginInstanceManager, IPluginRegistry
+from .iplugin import IPlugin, IPluginCache, IPluginInstanceManager, IPluginRegistry, IPluginScanner
 from .iparameter import IParameter
 from .ipersistence import IProjectSerializer
 from .iproject import IProject
@@ -34,6 +34,7 @@ __all__ = [
     "IPluginCache",
     "IPluginInstanceManager",
     "IPluginRegistry",
+    "IPluginScanner",
     "IProject",
     "IProjectSerializer",
     "IReadonlyTimeline",

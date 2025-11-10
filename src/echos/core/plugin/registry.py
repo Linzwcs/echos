@@ -22,7 +22,7 @@ class PluginRegistry(IPluginRegistry):
         self.clear()
 
         for path in self._cache.get_all_cached_paths():
-            cached_info = self._cache.get_entry(path)
+            cached_info = self._cache.get_valid_entry(path)
             if cached_info:
                 self._add_to_memory(cached_info.descriptor)
 
@@ -61,6 +61,19 @@ class PluginRegistry(IPluginRegistry):
         print(
             f"--- Registry Update Complete in {end_time - start_time:.2f}s ---"
         )
+
+    def clear(self):
+        self._registry_by_id.clear()
+        self._registry_by_path.clear()
+
+    def list_all(self) -> List[PluginDescriptor]:
+        return list(self._registry_by_id.values())
+
+    def find_by_id(self, unique_plugin_id: str) -> Optional[PluginDescriptor]:
+        return self._registry_by_id.get(unique_plugin_id)
+
+    def find_by_path(self, path: Path) -> Optional[PluginDescriptor]:
+        return self._registry_by_path.get(path.resolve())
 
     def _scan_and_update_plugin(self, path: Path, mod_time: float):
 
@@ -101,16 +114,3 @@ class PluginRegistry(IPluginRegistry):
     def _remove_plugin(self, path: Path):
         self._remove_from_memory(path)
         self._cache.remove_entry(path)
-
-    def clear(self):
-        self._registry_by_id.clear()
-        self._registry_by_path.clear()
-
-    def list_all(self) -> List[PluginDescriptor]:
-        return list(self._registry_by_id.values())
-
-    def find_by_id(self, unique_plugin_id: str) -> Optional[PluginDescriptor]:
-        return self._registry_by_id.get(unique_plugin_id)
-
-    def find_by_path(self, path: Path) -> Optional[PluginDescriptor]:
-        return self._registry_by_path.get(path.resolve())

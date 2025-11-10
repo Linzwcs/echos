@@ -1,4 +1,4 @@
-# file: src/MuzaiCore/services/routing_service.py
+from ..agent.tools import tool
 from ..interfaces import IDAWManager, IRoutingService, ITrack
 from ..models import ToolResponse
 from ..core.history.commands.routing_commands import CreateSendCommand
@@ -49,17 +49,87 @@ class RoutingService(IRoutingService):
             return ToolResponse("success", data, command.description)
         return ToolResponse("error", None, command.error)
 
+    @tool(
+        category="routing",
+        description=
+        "Connects the output port of one node to the input port of another.",
+        returns="Confirmation of the connection.",
+        examples=[
+            "routing.connect(project_id='...', source_node_id='...', source_port_id='main_out', dest_node_id='...', dest_port_id='main_in')"
+        ])
     def connect(self, project_id: str, source_node_id: str,
                 source_port_id: str, dest_node_id: str,
                 dest_port_id: str) -> ToolResponse:
-        return ToolResponse("error", None,
-                            "Direct connect not implemented via command yet.")
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+        from echos.core.history.commands import ConnectCommand
+        command = ConnectCommand(router=project.router,
+                                 source_node_id=source_node_id,
+                                 source_port_id=source_port_id,
+                                 dest_node_id=dest_node_id,
+                                 dest_port_id=dest_port_id)
+        project.command_manager.execute_command(command)
 
-    def disconnect(self, project_id: str, source_node_id: str,
-                   dest_node_id: str) -> ToolResponse:
+        if command.is_executed:
+            return ToolResponse(
+                "success", {
+                    "source": f"{source_node_id}:{source_port_id}",
+                    "destination": f"{dest_node_id}:{dest_port_id}"
+                }, command.description)
         return ToolResponse(
-            "error", None,
-            "Direct disconnect not implemented via command yet.")
+            "error", None, command.error
+            or "Failed to execute connect command.")
 
+    @tool(
+        category="routing",
+        description="Disconnects two previously connected nodes.",
+        returns="Confirmation of the disconnection.",
+        examples=[
+            "routing.disconnect(project_id='...', source_node_id='...', source_port_id='main_out', dest_node_id='...', dest_port_id='main_in')"
+        ])
+    def disconnect(self, project_id: str, source_node_id: str,
+                   source_port_id: str, dest_node_id: str,
+                   dest_port_id: str) -> ToolResponse:
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+        from echos.core.history.commands import DisconnectCommand
+        command = DisconnectCommand(router=project.router,
+                                    source_node_id=source_node_id,
+                                    source_port_id=source_port_id,
+                                    dest_node_id=dest_node_id,
+                                    dest_port_id=dest_port_id)
+        project.command_manager.execute_command(command)
+
+        if command.is_executed:
+            return ToolResponse(
+                "success", {
+                    "source": f"{source_node_id}:{source_port_id}",
+                    "destination": f"{dest_node_id}:{dest_port_id}"
+                }, command.description)
+        return ToolResponse(
+            "error", None, command.error
+            or "Failed to execute disconnect command.")
+
+    @tool(category="routing",
+          description=
+          "Lists all direct connections between nodes in the project.",
+          returns="A list of all connections.")
     def list_connections(self, project_id: str) -> ToolResponse:
-        return ToolResponse("error", None, "List connections not implemented.")
+        project = self._manager.get_project(project_id)
+        if not project:
+            return ToolResponse("error", None,
+                                f"Project '{project_id}' not found.")
+
+        connections = project.router.get_all_connections()
+        data = [{
+            "source_node_id": c.source_node_id,
+            "source_port_id": c.source_port_id,
+            "dest_node_id": c.dest_node_id,
+            "dest_port_id": c.dest_port_id,
+        } for c in connections]
+        return ToolResponse("success", {"connections": data},
+                            f"Found {len(data)} connections.")

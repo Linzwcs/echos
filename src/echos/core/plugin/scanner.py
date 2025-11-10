@@ -1,3 +1,4 @@
+import time
 import uuid
 from pathlib import Path
 import json
@@ -5,11 +6,12 @@ import os
 import platform
 import sys
 import subprocess
-from typing import List
+from typing import List, Set
 from ...models import PluginScanResult
+from ...interfaces.system import IPluginScanner
 
 
-class PluginScanner:
+class PluginScanner(IPluginScanner):
 
     def __init__(self, worker_path: Path, timeout: int = 10):
         self.timeout = timeout

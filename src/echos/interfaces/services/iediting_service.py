@@ -1,5 +1,5 @@
 # file: src/MuzaiCore/services/IEditingService.py
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, List, Dict
 from echos.models import ToolResponse
 from .ibase_service import IService

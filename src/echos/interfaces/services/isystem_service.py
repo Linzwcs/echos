@@ -1,5 +1,4 @@
-# file: src/MuzaiCore/services/ISystemService.py
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Optional
 from echos.models import ToolResponse
 from .ibase_service import IService

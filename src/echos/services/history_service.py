@@ -3,7 +3,7 @@ from ..interfaces import IDAWManager, IHistoryService
 from ..models import ToolResponse
 
 
-class HistoryService:
+class HistoryService(IHistoryService):
 
     def __init__(self, manager: IDAWManager):
         self._manager = manager

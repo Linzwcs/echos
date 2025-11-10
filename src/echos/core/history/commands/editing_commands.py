@@ -61,6 +61,32 @@ class CreateMidiClipCommand(BaseCommand):
         return False
 
 
+class RemoveClipCommand(BaseCommand):
+
+    def __init__(self, track: ITrack, clip_id: str):
+        self._track = track
+        self._clip_id = clip_id
+        self._removed_clip: Optional[Any] = None
+        clip = next((c for c in track.clips if c.clip_id == clip_id), None)
+        super().__init__(
+            f"Remove clip '{clip.name if clip else clip_id}' from track '{track.name}'"
+        )
+
+    def _do_execute(self) -> bool:
+        self._removed_clip = next(
+            (c for c in self._track.clips if c.clip_id == self._clip_id), None)
+        if self._removed_clip:
+            return self._track.remove_clip(self._clip_id)
+        self._error = f"Clip '{self._clip_id}' not found on track."
+        return False
+
+    def _do_undo(self) -> bool:
+        if self._removed_clip:
+            self._track.add_clip(self._removed_clip)
+            return True
+        return False
+
+
 class AddNotesToClipCommand(BaseCommand):
 
     def __init__(self, clip: MIDIClip, notes_to_add: List[Note]):
@@ -83,3 +109,27 @@ class AddNotesToClipCommand(BaseCommand):
             if note in self._clip.notes:
                 self._clip.notes.remove(note)
         return len(self._clip.notes) < initial_count
+
+
+class RemoveNotesFromClipCommand(BaseCommand):
+
+    def __init__(self, clip: MIDIClip, notes_to_remove: List[Note]):
+        note_count = len(notes_to_remove)
+        super().__init__(
+            f"Remove {note_count} note{'s' if note_count > 1 else ''} from clip '{clip.name}'"
+        )
+        self._clip = clip
+        self._notes_to_remove = notes_to_remove
+
+    def _do_execute(self) -> bool:
+        initial_count = len(self._clip.notes)
+        for note in self._notes_to_remove:
+            if note in self._clip.notes:
+                self._clip.notes.remove(note)
+        return len(self._clip.notes) < initial_count
+
+    def _do_undo(self) -> bool:
+        initial_count = len(self._clip.notes)
+        for note in self._notes_to_remove:
+            self._clip.notes.add(note)
+        return len(self._clip.notes) > initial_count

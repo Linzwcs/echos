@@ -1,6 +1,8 @@
 from .editing_commands import (
     AddNotesToClipCommand,
     CreateMidiClipCommand,
+    RemoveClipCommand,
+    RemoveNotesFromClipCommand,
     SetParameterCommand,
 )
 from .node_commands import (
@@ -10,7 +12,7 @@ from .node_commands import (
     RemoveInsertPluginCommand,
     RenameNodeCommand,
 )
-from .routing_commands import ConnectCommand, CreateSendCommand
+from .routing_commands import ConnectCommand, CreateSendCommand, DisconnectCommand
 from .transport_command import SetTempoCommand, SetTimeSignatureCommand
 
 __all__ = [
@@ -18,6 +20,8 @@ __all__ = [
     "SetParameterCommand",
     "CreateMidiClipCommand",
     "AddNotesToClipCommand",
+    "RemoveClipCommand",
+    "RemoveNotesFromClipCommand",
 
     # Node Management Commands
     "CreateTrackCommand",
@@ -29,6 +33,7 @@ __all__ = [
     # Routing Commands
     "CreateSendCommand",
     "ConnectCommand",
+    "DisconnectCommand",
 
     # Transport Commands
     "SetTempoCommand",

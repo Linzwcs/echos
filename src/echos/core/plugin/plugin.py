@@ -112,7 +112,6 @@ class Plugin(IPlugin):
                      node_id=state.instance_id)
         plugin._is_enabled = state.is_enabled
 
-        # Restore parameter values
         for param_name, param_state in state.parameters.items():
             if param_name in plugin._parameters:
                 plugin._parameters[param_name]._base_value = param_state.value
@@ -120,12 +119,3 @@ class Plugin(IPlugin):
                     param_name]._automation_lane = param_state.automation_lane
 
         return plugin
-
-    def to_dict(self) -> Dict[str, Any]:
-
-        return {
-            "node_id": self.node_id,
-            "descriptor_uri": self.descriptor.uri,
-            "is_enabled": self.is_enabled,
-            "parameters": self.get_parameter_values()
-        }
